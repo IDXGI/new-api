@@ -937,7 +937,7 @@ export const getLogsColumns = ({
       title: t('审计'),
       dataIndex: 'request_id',
       fixed: 'right',
-      width: 110,
+      width: 88,
       render: (text, record) => {
         if (!requestAuditEnabled || !record.request_id) {
           return <></>;
@@ -948,7 +948,7 @@ export const getLogsColumns = ({
             type='tertiary'
             onClick={() => openAuditByRequestId(record.request_id)}
           >
-            {t('查看审计')}
+            {t('查看')}
           </Button>
         );
       },

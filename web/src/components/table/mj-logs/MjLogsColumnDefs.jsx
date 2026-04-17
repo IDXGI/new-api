@@ -491,6 +491,7 @@ export const getMjLogsColumns = ({
       title: t('请求审计'),
       dataIndex: 'mj_id',
       fixed: 'right',
+      width: 88,
       render: (text) => {
         if (!requestAuditEnabled || !text) {
           return <></>;
@@ -502,7 +503,7 @@ export const getMjLogsColumns = ({
               openAuditByMjId(text);
             }}
           >
-            {t('查看审计')}
+            {t('查看')}
           </Button>
         );
       },

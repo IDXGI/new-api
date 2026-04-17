@@ -388,7 +388,7 @@ export const getTaskLogsColumns = ({
       title: t('审计'),
       dataIndex: 'task_id',
       fixed: 'right',
-      width: 110,
+      width: 88,
       render: (text) => {
         if (!requestAuditEnabled || !text) {
           return <></>;
@@ -399,7 +399,7 @@ export const getTaskLogsColumns = ({
             type='tertiary'
             onClick={() => openAuditByTaskId(text)}
           >
-            {t('查看审计')}
+            {t('查看')}
           </Button>
         );
       },

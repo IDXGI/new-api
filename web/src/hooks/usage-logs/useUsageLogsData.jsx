@@ -210,8 +210,8 @@ export const useLogsData = () => {
   };
 
   const syncVisibleColumnsFromStorage = () => {
+    const next = getInitialVisibleColumns();
     setVisibleColumns((prev) => {
-      const next = getInitialVisibleColumns();
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
       if (
@@ -222,6 +222,7 @@ export const useLogsData = () => {
       }
       return next;
     });
+    setColumnPrefsHydrated(true);
   };
 
   const getInitialBillingDisplayMode = () => {
@@ -236,6 +237,7 @@ export const useLogsData = () => {
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState(getInitialVisibleColumns);
+  const [columnPrefsHydrated, setColumnPrefsHydrated] = useState(false);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [billingDisplayMode, setBillingDisplayMode] = useState(
     getInitialBillingDisplayMode,
@@ -267,6 +269,7 @@ export const useLogsData = () => {
   const initDefaultColumns = () => {
     const defaults = getDefaultColumnVisibility();
     setVisibleColumns(defaults);
+    setColumnPrefsHydrated(true);
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify(sanitizeColumnVisibilityForStorage(defaults)),
@@ -328,7 +331,7 @@ export const useLogsData = () => {
 
   // Persist column settings to the role-specific STORAGE_KEY
   useEffect(() => {
-    if (!requestAuditStatusReady) {
+    if (!requestAuditStatusReady || !columnPrefsHydrated) {
       return;
     }
     if (Object.keys(visibleColumns).length > 0) {
@@ -343,7 +346,12 @@ export const useLogsData = () => {
         );
       }
     }
-  }, [canViewRequestAudit, requestAuditStatusReady, visibleColumns]);
+  }, [
+    canViewRequestAudit,
+    columnPrefsHydrated,
+    requestAuditStatusReady,
+    visibleColumns,
+  ]);
 
   useEffect(() => {
     if (!requestAuditStatusReady) {
@@ -369,7 +377,12 @@ export const useLogsData = () => {
   ]);
 
   useEffect(() => {
-    if (!requestAuditStatusReady || !canViewRequestAudit) {
+    if (!requestAuditStatusReady) {
+      setColumnPrefsHydrated(false);
+      return;
+    }
+    if (!canViewRequestAudit) {
+      setColumnPrefsHydrated(true);
       return;
     }
     syncVisibleColumnsFromStorage();

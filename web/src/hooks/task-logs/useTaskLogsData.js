@@ -68,6 +68,7 @@ export const useTaskLogsData = () => {
 
   // User and admin
   const isAdminUser = isAdmin();
+  const canViewRequestAudit = requestAuditEnabled && isAdminUser;
   // Role-specific storage key to prevent different roles from overwriting each other
   const STORAGE_KEY = isAdminUser
     ? 'task-logs-table-columns-admin'
@@ -142,7 +143,7 @@ export const useTaskLogsData = () => {
     } else {
       initDefaultColumns();
     }
-  }, [requestAuditEnabled, requestAuditStatusReady]);
+  }, [canViewRequestAudit, requestAuditStatusReady]);
 
   // Get default column visibility based on user role
   const getDefaultColumnVisibility = () => {
@@ -159,12 +160,12 @@ export const useTaskLogsData = () => {
       [COLUMN_KEYS.PROGRESS]: true,
       [COLUMN_KEYS.FAIL_REASON]: true,
       [COLUMN_KEYS.RESULT_URL]: true,
-      [COLUMN_KEYS.AUDIT]: requestAuditEnabled,
+      [COLUMN_KEYS.AUDIT]: canViewRequestAudit,
     };
   };
 
   const getStoredAuditVisibility = () => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return false;
     }
     const storedVisibility = localStorage.getItem(AUDIT_VISIBILITY_STORAGE_KEY);
@@ -193,7 +194,7 @@ export const useTaskLogsData = () => {
 
   const sanitizeColumnVisibilityForStorage = (columns) => {
     const next = { ...columns };
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       delete next[COLUMN_KEYS.AUDIT];
     }
     return next;
@@ -207,7 +208,7 @@ export const useTaskLogsData = () => {
       STORAGE_KEY,
       JSON.stringify(sanitizeColumnVisibilityForStorage(defaults)),
     );
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_STORAGE_KEY, 'true');
       localStorage.removeItem(AUDIT_VISIBILITY_USER_SET_KEY);
     }
@@ -218,10 +219,10 @@ export const useTaskLogsData = () => {
     const updatedColumns = {
       ...visibleColumns,
       [columnKey]:
-        columnKey === COLUMN_KEYS.AUDIT && !requestAuditEnabled ? false : checked,
+        columnKey === COLUMN_KEYS.AUDIT && !canViewRequestAudit ? false : checked,
     };
     setVisibleColumns(updatedColumns);
-    if (columnKey === COLUMN_KEYS.AUDIT && requestAuditEnabled) {
+    if (columnKey === COLUMN_KEYS.AUDIT && canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
       localStorage.setItem(
         AUDIT_VISIBILITY_STORAGE_KEY,
@@ -241,7 +242,7 @@ export const useTaskLogsData = () => {
         !isAdminUser
       ) {
         updatedColumns[key] = false;
-      } else if (key === COLUMN_KEYS.AUDIT && !requestAuditEnabled) {
+      } else if (key === COLUMN_KEYS.AUDIT && !canViewRequestAudit) {
         updatedColumns[key] = false;
       } else {
         updatedColumns[key] = checked;
@@ -249,7 +250,7 @@ export const useTaskLogsData = () => {
     });
 
     setVisibleColumns(updatedColumns);
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
     }
   };
@@ -264,14 +265,14 @@ export const useTaskLogsData = () => {
         STORAGE_KEY,
         JSON.stringify(sanitizeColumnVisibilityForStorage(visibleColumns)),
       );
-      if (requestAuditEnabled && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
+      if (canViewRequestAudit && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
         localStorage.setItem(
           AUDIT_VISIBILITY_STORAGE_KEY,
           visibleColumns[COLUMN_KEYS.AUDIT] ? 'true' : 'false',
         );
       }
     }
-  }, [requestAuditEnabled, requestAuditStatusReady, visibleColumns]);
+  }, [canViewRequestAudit, requestAuditStatusReady, visibleColumns]);
 
   // Get form values helper function
   const getFormValues = () => {
@@ -378,7 +379,7 @@ export const useTaskLogsData = () => {
   };
 
   const openAuditByRequestId = async (requestId) => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return;
     }
     if (!requestId) {
@@ -407,7 +408,7 @@ export const useTaskLogsData = () => {
   };
 
   const openAuditByTaskId = async (taskId) => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return;
     }
     if (!taskId) {
@@ -505,7 +506,7 @@ export const useTaskLogsData = () => {
     // Compact mode
     compactMode,
     setCompactMode,
-    requestAuditEnabled,
+    requestAuditEnabled: canViewRequestAudit,
 
     // User info modal
     showUserInfo,

@@ -69,6 +69,7 @@ export const useMjLogsData = () => {
 
   // User and admin
   const isAdminUser = isAdmin();
+  const canViewRequestAudit = requestAuditEnabled && isAdminUser;
   // Role-specific storage key to prevent different roles from overwriting each other
   const STORAGE_KEY = isAdminUser
     ? 'mj-logs-table-columns-admin'
@@ -131,7 +132,7 @@ export const useMjLogsData = () => {
     } else {
       initDefaultColumns();
     }
-  }, [requestAuditEnabled, requestAuditStatusReady]);
+  }, [canViewRequestAudit, requestAuditStatusReady]);
 
   // Check banner notification
   useEffect(() => {
@@ -156,12 +157,12 @@ export const useMjLogsData = () => {
       [COLUMN_KEYS.PROMPT]: true,
       [COLUMN_KEYS.PROMPT_EN]: true,
       [COLUMN_KEYS.FAIL_REASON]: true,
-      [COLUMN_KEYS.AUDIT]: requestAuditEnabled,
+      [COLUMN_KEYS.AUDIT]: canViewRequestAudit,
     };
   };
 
   const getStoredAuditVisibility = () => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return false;
     }
     const storedVisibility = localStorage.getItem(AUDIT_VISIBILITY_STORAGE_KEY);
@@ -190,7 +191,7 @@ export const useMjLogsData = () => {
 
   const sanitizeColumnVisibilityForStorage = (columns) => {
     const next = { ...columns };
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       delete next[COLUMN_KEYS.AUDIT];
     }
     return next;
@@ -204,7 +205,7 @@ export const useMjLogsData = () => {
       STORAGE_KEY,
       JSON.stringify(sanitizeColumnVisibilityForStorage(defaults)),
     );
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_STORAGE_KEY, 'true');
       localStorage.removeItem(AUDIT_VISIBILITY_USER_SET_KEY);
     }
@@ -215,10 +216,10 @@ export const useMjLogsData = () => {
     const updatedColumns = {
       ...visibleColumns,
       [columnKey]:
-        columnKey === COLUMN_KEYS.AUDIT && !requestAuditEnabled ? false : checked,
+        columnKey === COLUMN_KEYS.AUDIT && !canViewRequestAudit ? false : checked,
     };
     setVisibleColumns(updatedColumns);
-    if (columnKey === COLUMN_KEYS.AUDIT && requestAuditEnabled) {
+    if (columnKey === COLUMN_KEYS.AUDIT && canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
       localStorage.setItem(
         AUDIT_VISIBILITY_STORAGE_KEY,
@@ -238,7 +239,7 @@ export const useMjLogsData = () => {
         !isAdminUser
       ) {
         updatedColumns[key] = false;
-      } else if (key === COLUMN_KEYS.AUDIT && !requestAuditEnabled) {
+      } else if (key === COLUMN_KEYS.AUDIT && !canViewRequestAudit) {
         updatedColumns[key] = false;
       } else {
         updatedColumns[key] = checked;
@@ -246,7 +247,7 @@ export const useMjLogsData = () => {
     });
 
     setVisibleColumns(updatedColumns);
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
     }
   };
@@ -261,14 +262,14 @@ export const useMjLogsData = () => {
         STORAGE_KEY,
         JSON.stringify(sanitizeColumnVisibilityForStorage(visibleColumns)),
       );
-      if (requestAuditEnabled && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
+      if (canViewRequestAudit && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
         localStorage.setItem(
           AUDIT_VISIBILITY_STORAGE_KEY,
           visibleColumns[COLUMN_KEYS.AUDIT] ? 'true' : 'false',
         );
       }
     }
-  }, [requestAuditEnabled, requestAuditStatusReady, visibleColumns]);
+  }, [canViewRequestAudit, requestAuditStatusReady, visibleColumns]);
 
   // Get form values helper function
   const getFormValues = () => {
@@ -368,7 +369,7 @@ export const useMjLogsData = () => {
   };
 
   const openAuditByRequestId = async (requestId) => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return;
     }
     if (!requestId) {
@@ -397,7 +398,7 @@ export const useMjLogsData = () => {
   };
 
   const openAuditByMjId = async (mjId) => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return;
     }
     if (!mjId) {
@@ -474,7 +475,7 @@ export const useMjLogsData = () => {
     // Compact mode
     compactMode,
     setCompactMode,
-    requestAuditEnabled,
+    requestAuditEnabled: canViewRequestAudit,
 
     // Functions
     loadLogs,

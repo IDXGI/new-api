@@ -85,6 +85,7 @@ export const useLogsData = () => {
 
   // User and admin
   const isAdminUser = isAdmin();
+  const canViewRequestAudit = requestAuditEnabled && isAdminUser;
   // Role-specific storage key to prevent different roles from overwriting each other
   const STORAGE_KEY = isAdminUser
     ? 'logs-table-columns-admin'
@@ -135,13 +136,13 @@ export const useLogsData = () => {
       [COLUMN_KEYS.COST]: true,
       [COLUMN_KEYS.RETRY]: isAdminUser,
       [COLUMN_KEYS.IP]: true,
-      [COLUMN_KEYS.AUDIT]: requestAuditEnabled,
+      [COLUMN_KEYS.AUDIT]: canViewRequestAudit,
       [COLUMN_KEYS.DETAILS]: true,
     };
   };
 
   const getStoredAuditVisibility = () => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return false;
     }
     const storedVisibility = localStorage.getItem(AUDIT_VISIBILITY_STORAGE_KEY);
@@ -170,7 +171,7 @@ export const useLogsData = () => {
 
   const sanitizeColumnVisibilityForStorage = (columns) => {
     const next = { ...columns };
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       delete next[COLUMN_KEYS.AUDIT];
     }
     return next;
@@ -247,7 +248,7 @@ export const useLogsData = () => {
       STORAGE_KEY,
       JSON.stringify(sanitizeColumnVisibilityForStorage(defaults)),
     );
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_STORAGE_KEY, 'true');
       localStorage.removeItem(AUDIT_VISIBILITY_USER_SET_KEY);
     }
@@ -258,10 +259,10 @@ export const useLogsData = () => {
     const updatedColumns = {
       ...visibleColumns,
       [columnKey]:
-        columnKey === COLUMN_KEYS.AUDIT && !requestAuditEnabled ? false : checked,
+        columnKey === COLUMN_KEYS.AUDIT && !canViewRequestAudit ? false : checked,
     };
     setVisibleColumns(updatedColumns);
-    if (columnKey === COLUMN_KEYS.AUDIT && requestAuditEnabled) {
+    if (columnKey === COLUMN_KEYS.AUDIT && canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
       localStorage.setItem(
         AUDIT_VISIBILITY_STORAGE_KEY,
@@ -283,7 +284,7 @@ export const useLogsData = () => {
         !isAdminUser
       ) {
         updatedColumns[key] = false;
-      } else if (key === COLUMN_KEYS.AUDIT && !requestAuditEnabled) {
+      } else if (key === COLUMN_KEYS.AUDIT && !canViewRequestAudit) {
         updatedColumns[key] = false;
       } else {
         updatedColumns[key] = checked;
@@ -291,7 +292,7 @@ export const useLogsData = () => {
     });
 
     setVisibleColumns(updatedColumns);
-    if (requestAuditEnabled) {
+    if (canViewRequestAudit) {
       localStorage.setItem(AUDIT_VISIBILITY_USER_SET_KEY, 'true');
     }
   };
@@ -306,31 +307,31 @@ export const useLogsData = () => {
         STORAGE_KEY,
         JSON.stringify(sanitizeColumnVisibilityForStorage(visibleColumns)),
       );
-      if (requestAuditEnabled && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
+      if (canViewRequestAudit && visibleColumns[COLUMN_KEYS.AUDIT] !== undefined) {
         localStorage.setItem(
           AUDIT_VISIBILITY_STORAGE_KEY,
           visibleColumns[COLUMN_KEYS.AUDIT] ? 'true' : 'false',
         );
       }
     }
-  }, [requestAuditEnabled, requestAuditStatusReady, visibleColumns]);
+  }, [canViewRequestAudit, requestAuditStatusReady, visibleColumns]);
 
   useEffect(() => {
     if (!requestAuditStatusReady) {
       return;
     }
-    if (!requestAuditEnabled && visibleColumns[COLUMN_KEYS.AUDIT] !== false) {
+    if (!canViewRequestAudit && visibleColumns[COLUMN_KEYS.AUDIT] !== false) {
       setVisibleColumns((prev) => ({ ...prev, [COLUMN_KEYS.AUDIT]: false }));
     }
   }, [
-    requestAuditEnabled,
+    canViewRequestAudit,
     requestAuditStatusReady,
     visibleColumns,
     COLUMN_KEYS.AUDIT,
   ]);
 
   useEffect(() => {
-    if (!requestAuditStatusReady || !requestAuditEnabled) {
+    if (!requestAuditStatusReady || !canViewRequestAudit) {
       return;
     }
     const storedAuditVisibility = getStoredAuditVisibility();
@@ -349,7 +350,7 @@ export const useLogsData = () => {
         [COLUMN_KEYS.AUDIT]: storedAuditVisibility,
       };
     });
-  }, [requestAuditEnabled, requestAuditStatusReady]);
+  }, [canViewRequestAudit, requestAuditStatusReady]);
 
   useEffect(() => {
     localStorage.setItem(BILLING_DISPLAY_MODE_STORAGE_KEY, billingDisplayMode);
@@ -488,7 +489,7 @@ export const useLogsData = () => {
   };
 
   const openAuditByRequestId = async (requestId) => {
-    if (!requestAuditEnabled) {
+    if (!canViewRequestAudit) {
       return;
     }
     if (!requestId) {
@@ -1091,7 +1092,7 @@ export const useLogsData = () => {
     // Compact mode
     compactMode,
     setCompactMode,
-    requestAuditEnabled,
+    requestAuditEnabled: canViewRequestAudit,
 
     // User info modal
     showUserInfo,

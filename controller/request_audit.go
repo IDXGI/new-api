@@ -50,16 +50,14 @@ func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*m
 		common.ApiError(c, err)
 		return
 	}
-	userId := c.GetInt("id")
-	isAdmin := model.IsAdmin(userId)
-	if !isAdmin && audit.UserId != userId {
+	if c.GetInt("role") < common.RoleAdminUser {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"message": "无权查看该请求审计记录",
+			"message": "仅管理员可查看该请求审计记录",
 		})
 		return
 	}
-	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related, userId, isAdmin)))
+	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related)))
 }
 
 func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H) gin.H {
@@ -174,7 +172,7 @@ func enrichAuditModelResolution(audit *model.RequestAudit, tracePayload any) (st
 	return upstreamModel, tracePayload
 }
 
-func buildRelatedAuditRecords(audits []*model.RequestAudit, userId int, isAdmin bool) []gin.H {
+func buildRelatedAuditRecords(audits []*model.RequestAudit) []gin.H {
 	if len(audits) == 0 {
 		return []gin.H{}
 	}
@@ -182,9 +180,6 @@ func buildRelatedAuditRecords(audits []*model.RequestAudit, userId int, isAdmin 
 	seen := make(map[string]struct{}, len(audits))
 	for _, audit := range audits {
 		if audit == nil || audit.RequestID == "" {
-			continue
-		}
-		if !isAdmin && audit.UserId != userId {
 			continue
 		}
 		if _, ok := seen[audit.RequestID]; ok {

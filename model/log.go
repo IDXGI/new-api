@@ -37,6 +37,7 @@ type Log struct {
 	Ip               string `json:"ip" gorm:"index;default:''"`
 	RequestId        string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	Other            string `json:"other"`
+	AggregatedText   string `json:"aggregated_text,omitempty" gorm:"-"`
 }
 
 // don't use iota, avoid change log type value
@@ -295,6 +296,33 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
+func hydrateLogsAggregatedText(logs []*Log) {
+	if len(logs) == 0 {
+		return
+	}
+	requestIDs := make([]string, 0, len(logs))
+	for _, log := range logs {
+		if log == nil || log.RequestId == "" {
+			continue
+		}
+		requestIDs = append(requestIDs, log.RequestId)
+	}
+	if len(requestIDs) == 0 {
+		return
+	}
+	aggregatedTextMap, err := GetAggregatedTextsByRequestIDs(requestIDs)
+	if err != nil {
+		common.SysError("failed to hydrate log aggregated text: " + err.Error())
+		return
+	}
+	for i := range logs {
+		if logs[i] == nil || logs[i].RequestId == "" {
+			continue
+		}
+		logs[i].AggregatedText = aggregatedTextMap[logs[i].RequestId]
+	}
+}
+
 func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
@@ -375,6 +403,8 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 			logs[i].ChannelName = channelMap[logs[i].ChannelId]
 		}
 	}
+
+	hydrateLogsAggregatedText(logs)
 
 	return logs, total, err
 }

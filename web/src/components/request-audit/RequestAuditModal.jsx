@@ -149,6 +149,23 @@ function stringifyValue(value) {
   }
 }
 
+function getAuditAggregatedText(auditRecord) {
+  if (!auditRecord) {
+    return '';
+  }
+  if (typeof auditRecord.aggregated_text === 'string') {
+    return auditRecord.aggregated_text.trim();
+  }
+  const responsePayload = auditRecord.response;
+  if (responsePayload && typeof responsePayload === 'object') {
+    const aggregatedText = responsePayload.aggregated_text;
+    if (typeof aggregatedText === 'string') {
+      return aggregatedText.trim();
+    }
+  }
+  return '';
+}
+
 function renderTextValue(value, code = false) {
   const displayValue =
     value === undefined || value === null || value === '' ? '-' : String(value);
@@ -394,6 +411,8 @@ const RequestAuditModal = ({
       ]
     : [];
 
+  const aggregatedText = getAuditAggregatedText(auditRecord);
+
   return (
     <Modal
       title={
@@ -578,6 +597,44 @@ const RequestAuditModal = ({
                 </div>
               </div>
             </SectionPanel>
+
+            {aggregatedText ? (
+              <SectionPanel
+                title={t('回答内容')}
+                extra={
+                  <Button
+                    size='small'
+                    type='tertiary'
+                    onClick={() => handleCopySection(t('回答内容'), aggregatedText)}
+                  >
+                    {`${t('复制')} ${t('回答内容')}`}
+                  </Button>
+                }
+              >
+                <div
+                  style={{
+                    border: '1px solid var(--semi-color-border)',
+                    borderRadius: 14,
+                    background: 'var(--semi-color-fill-0)',
+                    padding: '14px 16px',
+                    maxHeight: 'min(28vh, 320px)',
+                    overflowY: 'auto',
+                  }}
+                >
+                  <Typography.Paragraph
+                    style={{
+                      marginBottom: 0,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      lineHeight: 1.8,
+                      fontSize: 14,
+                    }}
+                  >
+                    {aggregatedText}
+                  </Typography.Paragraph>
+                </div>
+              </SectionPanel>
+            ) : null}
 
             <div
               style={{

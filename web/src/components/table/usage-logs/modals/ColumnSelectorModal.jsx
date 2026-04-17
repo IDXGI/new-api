@@ -32,6 +32,7 @@ const ColumnSelectorModal = ({
   setBillingDisplayMode,
   COLUMN_KEYS,
   isAdminUser,
+  requestAuditEnabled,
   copyText,
   showUserInfoFunc,
   t,
@@ -51,6 +52,7 @@ const ColumnSelectorModal = ({
     copyText,
     showUserInfoFunc,
     isAdminUser,
+    requestAuditEnabled,
     billingDisplayMode,
   });
 
@@ -109,6 +111,15 @@ const ColumnSelectorModal = ({
             (column.key === COLUMN_KEYS.CHANNEL ||
               column.key === COLUMN_KEYS.USERNAME ||
               column.key === COLUMN_KEYS.RETRY ||
+              column.key === COLUMN_KEYS.ANSWER ||
+              column.key === COLUMN_KEYS.AUDIT)
+          ) {
+            return null;
+          }
+
+          if (
+            !requestAuditEnabled &&
+            (column.key === COLUMN_KEYS.ANSWER ||
               column.key === COLUMN_KEYS.AUDIT)
           ) {
             return null;

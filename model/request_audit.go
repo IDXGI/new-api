@@ -3,7 +3,9 @@ package model
 import (
 	"context"
 	"errors"
+	"strings"
 
+	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -157,6 +159,61 @@ func DeleteOldRequestAudits(ctx context.Context, targetTimestamp int64, batchSiz
 			return total, nil
 		}
 	}
+}
+
+func ExtractAggregatedTextFromResponsePayload(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	var payload map[string]any
+	if err := common.Unmarshal([]byte(raw), &payload); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(common.Interface2String(payload["aggregated_text"]))
+}
+
+func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, error) {
+	result := make(map[string]string)
+	if len(requestIDs) == 0 {
+		return result, nil
+	}
+
+	uniqueIDs := make([]string, 0, len(requestIDs))
+	seen := make(map[string]struct{}, len(requestIDs))
+	for _, requestID := range requestIDs {
+		requestID = strings.TrimSpace(requestID)
+		if requestID == "" {
+			continue
+		}
+		if _, ok := seen[requestID]; ok {
+			continue
+		}
+		seen[requestID] = struct{}{}
+		uniqueIDs = append(uniqueIDs, requestID)
+	}
+	if len(uniqueIDs) == 0 {
+		return result, nil
+	}
+
+	var audits []struct {
+		RequestID       string `gorm:"column:request_id"`
+		ResponsePayload string `gorm:"column:response_payload"`
+	}
+	if err := LOG_DB.Model(&RequestAudit{}).
+		Select("request_id, response_payload").
+		Where("request_id IN ?", uniqueIDs).
+		Find(&audits).Error; err != nil {
+		return nil, err
+	}
+
+	for _, audit := range audits {
+		aggregatedText := ExtractAggregatedTextFromResponsePayload(audit.ResponsePayload)
+		if aggregatedText == "" {
+			continue
+		}
+		result[audit.RequestID] = aggregatedText
+	}
+	return result, nil
 }
 
 func GetRequestLogsByRequestID(requestID string) ([]*Log, error) {

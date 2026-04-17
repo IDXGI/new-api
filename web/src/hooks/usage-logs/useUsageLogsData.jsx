@@ -68,6 +68,7 @@ export const useLogsData = () => {
     COST: 'cost',
     RETRY: 'retry',
     IP: 'ip',
+    ANSWER: 'answer',
     AUDIT: 'audit',
     DETAILS: 'details',
   };
@@ -136,6 +137,7 @@ export const useLogsData = () => {
       [COLUMN_KEYS.COST]: true,
       [COLUMN_KEYS.RETRY]: isAdminUser,
       [COLUMN_KEYS.IP]: true,
+      [COLUMN_KEYS.ANSWER]: false,
       [COLUMN_KEYS.AUDIT]: canViewRequestAudit,
       [COLUMN_KEYS.DETAILS]: true,
     };
@@ -172,6 +174,7 @@ export const useLogsData = () => {
   const sanitizeColumnVisibilityForStorage = (columns) => {
     const next = { ...columns };
     if (!canViewRequestAudit) {
+      delete next[COLUMN_KEYS.ANSWER];
       delete next[COLUMN_KEYS.AUDIT];
     }
     return next;
@@ -193,6 +196,9 @@ export const useLogsData = () => {
         merged[COLUMN_KEYS.CHANNEL] = false;
         merged[COLUMN_KEYS.USERNAME] = false;
         merged[COLUMN_KEYS.RETRY] = false;
+      }
+      if (!canViewRequestAudit) {
+        merged[COLUMN_KEYS.ANSWER] = false;
       }
       merged[COLUMN_KEYS.AUDIT] = getStoredAuditVisibility();
 
@@ -259,7 +265,10 @@ export const useLogsData = () => {
     const updatedColumns = {
       ...visibleColumns,
       [columnKey]:
-        columnKey === COLUMN_KEYS.AUDIT && !canViewRequestAudit ? false : checked,
+        (columnKey === COLUMN_KEYS.AUDIT || columnKey === COLUMN_KEYS.ANSWER) &&
+        !canViewRequestAudit
+          ? false
+          : checked,
     };
     setVisibleColumns(updatedColumns);
     if (columnKey === COLUMN_KEYS.AUDIT && canViewRequestAudit) {
@@ -284,7 +293,10 @@ export const useLogsData = () => {
         !isAdminUser
       ) {
         updatedColumns[key] = false;
-      } else if (key === COLUMN_KEYS.AUDIT && !canViewRequestAudit) {
+      } else if (
+        (key === COLUMN_KEYS.AUDIT || key === COLUMN_KEYS.ANSWER) &&
+        !canViewRequestAudit
+      ) {
         updatedColumns[key] = false;
       } else {
         updatedColumns[key] = checked;
@@ -320,13 +332,22 @@ export const useLogsData = () => {
     if (!requestAuditStatusReady) {
       return;
     }
-    if (!canViewRequestAudit && visibleColumns[COLUMN_KEYS.AUDIT] !== false) {
-      setVisibleColumns((prev) => ({ ...prev, [COLUMN_KEYS.AUDIT]: false }));
+    if (
+      !canViewRequestAudit &&
+      (visibleColumns[COLUMN_KEYS.AUDIT] !== false ||
+        visibleColumns[COLUMN_KEYS.ANSWER] !== false)
+    ) {
+      setVisibleColumns((prev) => ({
+        ...prev,
+        [COLUMN_KEYS.AUDIT]: false,
+        [COLUMN_KEYS.ANSWER]: false,
+      }));
     }
   }, [
     canViewRequestAudit,
     requestAuditStatusReady,
     visibleColumns,
+    COLUMN_KEYS.ANSWER,
     COLUMN_KEYS.AUDIT,
   ]);
 

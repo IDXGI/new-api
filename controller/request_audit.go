@@ -12,11 +12,17 @@ import (
 )
 
 func GetRequestAuditByRequestID(c *gin.Context) {
+	if !ensureRequestAuditAdmin(c) {
+		return
+	}
 	audit, err := model.GetRequestAuditByRequestID(c.Param("request_id"))
 	respondRequestAudit(c, audit, nil, err)
 }
 
 func GetRequestAuditByTaskID(c *gin.Context) {
+	if !ensureRequestAuditAdmin(c) {
+		return
+	}
 	taskID := c.Param("task_id")
 	audit, err := model.GetPreferredRequestAuditByTaskID(taskID)
 	if err != nil {
@@ -28,6 +34,9 @@ func GetRequestAuditByTaskID(c *gin.Context) {
 }
 
 func GetRequestAuditByMJID(c *gin.Context) {
+	if !ensureRequestAuditAdmin(c) {
+		return
+	}
 	mjID := c.Param("mj_id")
 	audit, err := model.GetPreferredRequestAuditByMJID(mjID)
 	if err != nil {
@@ -36,6 +45,17 @@ func GetRequestAuditByMJID(c *gin.Context) {
 	}
 	related, relatedErr := model.ListRequestAuditsByMJID(mjID, 10)
 	respondRequestAudit(c, audit, related, relatedErr)
+}
+
+func ensureRequestAuditAdmin(c *gin.Context) bool {
+	if c.GetInt("role") >= common.RoleAdminUser {
+		return true
+	}
+	c.JSON(http.StatusForbidden, gin.H{
+		"success": false,
+		"message": "仅管理员可查看该请求审计记录",
+	})
+	return false
 }
 
 func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*model.RequestAudit, err error) {
@@ -50,13 +70,6 @@ func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*m
 		common.ApiError(c, err)
 		return
 	}
-	if c.GetInt("role") < common.RoleAdminUser {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"message": "仅管理员可查看该请求审计记录",
-		})
-		return
-	}
 	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related)))
 }
 
@@ -65,6 +78,7 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 	responsePayload := parseAuditPayload(string(audit.ResponsePayload))
 	tracePayload := parseAuditPayload(string(audit.TracePayload))
 	upstreamModelName, tracePayload := enrichAuditModelResolution(audit, tracePayload)
+	aggregatedText := model.ExtractAggregatedTextFromResponsePayload(string(audit.ResponsePayload))
 	return gin.H{
 		"id":                  audit.ID,
 		"request_id":          audit.RequestID,
@@ -97,6 +111,7 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		"latency_ms":          audit.LatencyMs,
 		"first_response_ms":   audit.FirstResponseMs,
 		"retry_count":         audit.RetryCount,
+		"aggregated_text":     aggregatedText,
 		"request":             requestPayload,
 		"response":            responsePayload,
 		"trace":               tracePayload,

@@ -376,6 +376,14 @@ function normalizeDetailText(detail) {
     .replace(/\r\n/g, '\n');
 }
 
+function normalizeAggregatedText(text) {
+  return String(text || '')
+    .replace(/\n\r/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getUsageLogGroupSummary(groupRatio, userGroupRatio, t) {
   const parsedUserGroupRatio = Number(userGroupRatio);
   const useUserGroupRatio =
@@ -900,6 +908,47 @@ export const getLogsColumns = ({
           </Tooltip>
         ) : (
           <></>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.ANSWER,
+      title: t('回答内容'),
+      dataIndex: 'aggregated_text',
+      width: 260,
+      render: (text, record) => {
+        if (!requestAuditEnabled || !(record.type === 2 || record.type === 5)) {
+          return <></>;
+        }
+        const normalizedText = normalizeAggregatedText(text);
+        if (!normalizedText) {
+          return <></>;
+        }
+        return (
+          <Typography.Paragraph
+            ellipsis={{
+              rows: 2,
+              showTooltip: {
+                type: 'popover',
+                opts: {
+                  style: {
+                    width: 420,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                    lineHeight: 1.7,
+                  },
+                },
+              },
+            }}
+            style={{
+              maxWidth: 240,
+              marginBottom: 0,
+              lineHeight: 1.5,
+              fontSize: 12,
+            }}
+          >
+            {normalizedText}
+          </Typography.Paragraph>
         );
       },
     },

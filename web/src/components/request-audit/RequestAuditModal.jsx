@@ -290,6 +290,16 @@ function JsonBlock({ value, t }) {
   );
 }
 
+const auditModalScrollStyle = {
+  maxHeight: 'calc(78vh - 96px)',
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  padding: '12px 20px 16px',
+  boxSizing: 'border-box',
+  overscrollBehavior: 'contain',
+  scrollbarGutter: 'stable',
+};
+
 const RequestAuditModal = ({
   visible,
   onCancel,
@@ -475,387 +485,387 @@ const RequestAuditModal = ({
       footer={null}
       width='min(1120px, calc(100vw - 32px))'
       bodyStyle={{
-        maxHeight: 'calc(78vh - 96px)',
-        overflowY: 'auto',
-        paddingTop: 8,
-        paddingBottom: 12,
+        padding: 0,
+        overflow: 'hidden',
       }}
       centered
     >
-      <Spin spinning={loading && !auditRecord}>
-        {loading && !auditRecord ? (
-          <div
-            style={{
-              minHeight: 280,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-              gap: 12,
-            }}
-          >
-            <Typography.Text strong>{t('正在加载审计概览')}</Typography.Text>
-            <Typography.Text type='secondary'>
-              {t('弹窗已打开，详细内容会在准备完成后显示')}
-            </Typography.Text>
-          </div>
-        ) : !auditRecord ? (
-          <Empty description={t('暂无审计详情')} image={null} />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <SectionPanel
-              title={t('请求概览')}
-              subtitle={t('快速查看本次审计的路由、状态与关键指标')}
-              extra={
-                <Space wrap>
-                  <Button
-                    size='small'
-                    type='tertiary'
-                    onClick={() =>
-                      handleCopySection(t('请求 ID'), auditRecord.request_id || '')
-                    }
-                  >
-                    {t('复制 Request ID')}
-                  </Button>
-                  <Button
-                    size='small'
-                    type='tertiary'
-                    disabled={!payloadsLoaded || payloadLoading}
-                    onClick={() =>
-                      handleCopySection(t('请求内容'), auditRecord.request)
-                    }
-                  >
-                    {t('复制请求')}
-                  </Button>
-                  <Button
-                    size='small'
-                    type='tertiary'
-                    disabled={!payloadsLoaded || payloadLoading}
-                    onClick={() =>
-                      handleCopySection(t('响应内容'), auditRecord.response)
-                    }
-                  >
-                    {t('复制响应')}
-                  </Button>
-                  <Button
-                    size='small'
-                    type='tertiary'
-                    disabled={!payloadsLoaded || payloadLoading}
-                    onClick={() =>
-                      handleCopySection(t('链路内容'), auditRecord.trace)
-                    }
-                  >
-                    {t('复制链路')}
-                  </Button>
-                </Space>
-              }
+      <div style={auditModalScrollStyle}>
+        <Spin spinning={loading && !auditRecord}>
+          {loading && !auditRecord ? (
+            <div
+              style={{
+                minHeight: 280,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: 12,
+              }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 16,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <Space wrap>
-                    {renderStatusTag(auditRecord, t)}
-                    {auditRecord.method ? (
-                      <Tag color='blue' shape='circle'>
-                        {auditRecord.method}
-                      </Tag>
-                    ) : null}
-                    {auditRecord.mode ? (
-                      <Tag color='cyan' shape='circle'>
-                        {auditRecord.mode}
-                      </Tag>
-                    ) : null}
-                    {auditRecord.route_group ? (
-                      <Tag color='white' shape='circle'>
-                        {auditRecord.route_group}
-                      </Tag>
-                    ) : null}
-                    {renderBooleanTag(
-                      auditRecord.is_stream,
-                      t,
-                      t('流式'),
-                      t('非流'),
-                    )}
-                    {auditRecord.is_playground ? (
-                      <Tag color='violet' shape='circle'>
-                        Playground
-                      </Tag>
-                    ) : null}
-                  </Space>
-                  <div
-                    style={{
-                      marginTop: 12,
-                      padding: '12px 14px',
-                      borderRadius: 14,
-                      border: '1px solid var(--semi-color-border)',
-                      background: 'var(--semi-color-fill-0)',
-                    }}
-                  >
-                    <Typography.Text
-                      strong
-                      style={{
-                        fontFamily:
-                          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
-                        wordBreak: 'break-all',
-                      }}
-                    >
-                      {auditRecord.request_id || '-'}
-                    </Typography.Text>
-                  </div>
-                  <Typography.Text
-                    type='secondary'
-                    style={{
-                      display: 'block',
-                      marginTop: 10,
-                      wordBreak: 'break-all',
-                    }}
-                  >
-                    {auditRecord.route_path || '-'}
-                  </Typography.Text>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                    gap: 12,
-                  }}
-                >
-                  <MetricCard
-                    label={t('总耗时')}
-                    value={formatDurationMs(auditRecord.latency_ms)}
-                    extra={`${t('重试次数')}：${auditRecord.retry_count || 0}`}
-                  />
-                  <MetricCard
-                    label={t('首包耗时')}
-                    value={formatDurationMs(auditRecord.first_response_ms, true)}
-                    extra={`${t('开始时间')}：${formatAuditTimestamp(auditRecord.started_at)}`}
-                  />
-                  <MetricCard
-                    label={t('模型映射')}
-                    value={getModelMappingValue(auditRecord, t)}
-                    extra={`${t('上游模型')}：${auditRecord.upstream_model_name || '-'}`}
-                  />
-                  <MetricCard
-                    label={t('创建时间')}
-                    value={formatAuditTimestamp(auditRecord.created_at)}
-                    extra={`${t('结束时间')}：${formatAuditTimestamp(auditRecord.finished_at)}`}
-                  />
-                </div>
-              </div>
-            </SectionPanel>
-
-            {aggregatedText ? (
+              <Typography.Text strong>{t('正在加载审计概览')}</Typography.Text>
+              <Typography.Text type='secondary'>
+                {t('弹窗已打开，详细内容会在准备完成后显示')}
+              </Typography.Text>
+            </div>
+          ) : !auditRecord ? (
+            <Empty description={t('暂无审计详情')} image={null} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <SectionPanel
-                title={t('回答内容')}
+                title={t('请求概览')}
+                subtitle={t('快速查看本次审计的路由、状态与关键指标')}
                 extra={
-                  <Button
-                    size='small'
-                    type='tertiary'
-                    onClick={() => handleCopySection(t('回答内容'), aggregatedText)}
-                  >
-                    {`${t('复制')} ${t('回答内容')}`}
-                  </Button>
+                  <Space wrap>
+                    <Button
+                      size='small'
+                      type='tertiary'
+                      onClick={() =>
+                        handleCopySection(t('请求 ID'), auditRecord.request_id || '')
+                      }
+                    >
+                      {t('复制 Request ID')}
+                    </Button>
+                    <Button
+                      size='small'
+                      type='tertiary'
+                      disabled={!payloadsLoaded || payloadLoading}
+                      onClick={() =>
+                        handleCopySection(t('请求内容'), auditRecord.request)
+                      }
+                    >
+                      {t('复制请求')}
+                    </Button>
+                    <Button
+                      size='small'
+                      type='tertiary'
+                      disabled={!payloadsLoaded || payloadLoading}
+                      onClick={() =>
+                        handleCopySection(t('响应内容'), auditRecord.response)
+                      }
+                    >
+                      {t('复制响应')}
+                    </Button>
+                    <Button
+                      size='small'
+                      type='tertiary'
+                      disabled={!payloadsLoaded || payloadLoading}
+                      onClick={() =>
+                        handleCopySection(t('链路内容'), auditRecord.trace)
+                      }
+                    >
+                      {t('复制链路')}
+                    </Button>
+                  </Space>
                 }
               >
                 <div
                   style={{
-                    border: '1px solid var(--semi-color-border)',
-                    borderRadius: 14,
-                    background: 'var(--semi-color-fill-0)',
-                    padding: '14px 16px',
-                    maxHeight: 'min(28vh, 320px)',
-                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 16,
                   }}
                 >
-                  <Typography.Paragraph
+                  <div style={{ minWidth: 0 }}>
+                    <Space wrap>
+                      {renderStatusTag(auditRecord, t)}
+                      {auditRecord.method ? (
+                        <Tag color='blue' shape='circle'>
+                          {auditRecord.method}
+                        </Tag>
+                      ) : null}
+                      {auditRecord.mode ? (
+                        <Tag color='cyan' shape='circle'>
+                          {auditRecord.mode}
+                        </Tag>
+                      ) : null}
+                      {auditRecord.route_group ? (
+                        <Tag color='white' shape='circle'>
+                          {auditRecord.route_group}
+                        </Tag>
+                      ) : null}
+                      {renderBooleanTag(
+                        auditRecord.is_stream,
+                        t,
+                        t('流式'),
+                        t('非流'),
+                      )}
+                      {auditRecord.is_playground ? (
+                        <Tag color='violet' shape='circle'>
+                          Playground
+                        </Tag>
+                      ) : null}
+                    </Space>
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: '12px 14px',
+                        borderRadius: 14,
+                        border: '1px solid var(--semi-color-border)',
+                        background: 'var(--semi-color-fill-0)',
+                      }}
+                    >
+                      <Typography.Text
+                        strong
+                        style={{
+                          fontFamily:
+                            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {auditRecord.request_id || '-'}
+                      </Typography.Text>
+                    </div>
+                    <Typography.Text
+                      type='secondary'
+                      style={{
+                        display: 'block',
+                        marginTop: 10,
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {auditRecord.route_path || '-'}
+                    </Typography.Text>
+                  </div>
+                  <div
                     style={{
-                      marginBottom: 0,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      lineHeight: 1.8,
-                      fontSize: 14,
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: 12,
                     }}
                   >
-                    {aggregatedText}
-                  </Typography.Paragraph>
+                    <MetricCard
+                      label={t('总耗时')}
+                      value={formatDurationMs(auditRecord.latency_ms)}
+                      extra={`${t('重试次数')}：${auditRecord.retry_count || 0}`}
+                    />
+                    <MetricCard
+                      label={t('首包耗时')}
+                      value={formatDurationMs(auditRecord.first_response_ms, true)}
+                      extra={`${t('开始时间')}：${formatAuditTimestamp(auditRecord.started_at)}`}
+                    />
+                    <MetricCard
+                      label={t('模型映射')}
+                      value={getModelMappingValue(auditRecord, t)}
+                      extra={`${t('上游模型')}：${auditRecord.upstream_model_name || '-'}`}
+                    />
+                    <MetricCard
+                      label={t('创建时间')}
+                      value={formatAuditTimestamp(auditRecord.created_at)}
+                      extra={`${t('结束时间')}：${formatAuditTimestamp(auditRecord.finished_at)}`}
+                    />
+                  </div>
                 </div>
               </SectionPanel>
-            ) : null}
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: 16,
-              }}
-            >
-              <SectionPanel
-                title={t('基础信息')}
-                subtitle={t('请求、时间与基础状态字段')}
+              {aggregatedText ? (
+                <SectionPanel
+                  title={t('回答内容')}
+                  extra={
+                    <Button
+                      size='small'
+                      type='tertiary'
+                      onClick={() => handleCopySection(t('回答内容'), aggregatedText)}
+                    >
+                      {`${t('复制')} ${t('回答内容')}`}
+                    </Button>
+                  }
+                >
+                  <div
+                    style={{
+                      border: '1px solid var(--semi-color-border)',
+                      borderRadius: 14,
+                      background: 'var(--semi-color-fill-0)',
+                      padding: '14px 16px',
+                      maxHeight: 'min(28vh, 320px)',
+                      overflowY: 'auto',
+                    }}
+                  >
+                    <Typography.Paragraph
+                      style={{
+                        marginBottom: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.8,
+                        fontSize: 14,
+                      }}
+                    >
+                      {aggregatedText}
+                    </Typography.Paragraph>
+                  </div>
+                </SectionPanel>
+              ) : null}
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: 16,
+                }}
               >
-                <Descriptions data={requestDetails} columns={1} />
-              </SectionPanel>
+                <SectionPanel
+                  title={t('基础信息')}
+                  subtitle={t('请求、时间与基础状态字段')}
+                >
+                  <Descriptions data={requestDetails} columns={1} />
+                </SectionPanel>
+                <SectionPanel
+                  title={t('链路信息')}
+                  subtitle={t('模型、渠道、令牌与任务定位信息')}
+                >
+                  <Descriptions data={relayDetails} columns={1} />
+                </SectionPanel>
+              </div>
+
+              {Array.isArray(auditRecord.related_records) &&
+              auditRecord.related_records.length > 0 ? (
+                <SectionPanel
+                  title={t('关联请求')}
+                  subtitle={t('查看同一任务或同一流程中的其他审计记录')}
+                >
+                  <Space wrap style={{ marginBottom: 8 }}>
+                    {relatedFilters.map((filter) => (
+                      <Button
+                        key={filter.key}
+                        size='small'
+                        type={
+                          relatedFilter === filter.key ? 'primary' : 'tertiary'
+                        }
+                        onClick={() => setRelatedFilter(filter.key)}
+                      >
+                        {`${filter.label} (${filter.count})`}
+                      </Button>
+                    ))}
+                  </Space>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: 8,
+                    }}
+                  >
+                    {filteredRelatedRecords.map((record) => (
+                      <Button
+                        key={record.request_id}
+                        size='small'
+                        type={
+                          record.request_id === auditRecord.request_id
+                            ? 'primary'
+                            : 'tertiary'
+                        }
+                        disabled={
+                          !onOpenRequestAudit ||
+                          record.request_id === auditRecord.request_id
+                        }
+                        style={{
+                          justifyContent: 'flex-start',
+                          height: 'auto',
+                          padding: '10px 12px',
+                          whiteSpace: 'normal',
+                        }}
+                        onClick={() => onOpenRequestAudit?.(record.request_id)}
+                      >
+                        <div style={{ textAlign: 'left', lineHeight: 1.5 }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {renderRelatedTitle(record, t)}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: 'var(--semi-color-text-2)',
+                              marginTop: 2,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {formatAuditTimestamp(record.created_at)}
+                          </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </SectionPanel>
+              ) : null}
               <SectionPanel
-                title={t('链路信息')}
-                subtitle={t('模型、渠道、令牌与任务定位信息')}
+                title={t('请求详情')}
+                subtitle={
+                  payloadsLoaded
+                    ? t('以结构化 JSON 视图查看请求、响应与链路原始内容')
+                    : t('大体积请求与响应内容会在弹窗打开后后台补载')
+                }
+                extra={
+                  payloadLoading ? (
+                    <Tag color='cyan' shape='circle'>
+                      {t('明细加载中')}
+                    </Tag>
+                  ) : null
+                }
               >
-                <Descriptions data={relayDetails} columns={1} />
+                <Tabs
+                  type='card'
+                  activeKey={activeDetailTab}
+                  onChange={setActiveDetailTab}
+                >
+                  <TabPane tab={t('原始概览')} itemKey='summary'>
+                    <Typography.Text
+                      type='tertiary'
+                      style={{ display: 'block', marginBottom: 12 }}
+                    >
+                      {t('以下内容为审计记录的基础字段快照')}
+                    </Typography.Text>
+                    <JsonBlock
+                      t={t}
+                      value={{
+                        request_id: auditRecord.request_id,
+                        route_group: auditRecord.route_group,
+                        route_path: auditRecord.route_path,
+                        method: auditRecord.method,
+                        status_code: auditRecord.status_code,
+                        success: auditRecord.success,
+                        relay_format: auditRecord.relay_format,
+                        relay_mode: auditRecord.relay_mode,
+                        model_name: auditRecord.model_name,
+                        upstream_model_name: auditRecord.upstream_model_name,
+                        group: auditRecord.group,
+                        token_id: auditRecord.token_id,
+                        token_name: auditRecord.token_name,
+                        channel_id: auditRecord.channel_id,
+                        channel_name: auditRecord.channel_name,
+                        channel_type: auditRecord.channel_type,
+                        task_id: auditRecord.task_id,
+                        mj_id: auditRecord.mj_id,
+                        latency_ms: auditRecord.latency_ms,
+                        first_response_ms: auditRecord.first_response_ms,
+                        retry_count: auditRecord.retry_count,
+                      }}
+                    />
+                  </TabPane>
+                  <TabPane tab={t('请求')} itemKey='request'>
+                    {activeDetailTab === 'request' && payloadsLoaded ? (
+                      <JsonBlock value={auditRecord.request} t={t} />
+                    ) : (
+                      renderPayloadPlaceholder()
+                    )}
+                  </TabPane>
+                  <TabPane tab={t('响应')} itemKey='response'>
+                    {activeDetailTab === 'response' && payloadsLoaded ? (
+                      <JsonBlock value={auditRecord.response} t={t} />
+                    ) : (
+                      renderPayloadPlaceholder()
+                    )}
+                  </TabPane>
+                  <TabPane tab={t('链路')} itemKey='trace'>
+                    {activeDetailTab === 'trace' && payloadsLoaded ? (
+                      <JsonBlock value={auditRecord.trace} t={t} />
+                    ) : (
+                      renderPayloadPlaceholder()
+                    )}
+                  </TabPane>
+                </Tabs>
               </SectionPanel>
             </div>
-
-            {Array.isArray(auditRecord.related_records) &&
-            auditRecord.related_records.length > 0 ? (
-              <SectionPanel
-                title={t('关联请求')}
-                subtitle={t('查看同一任务或同一流程中的其他审计记录')}
-              >
-                <Space wrap style={{ marginBottom: 8 }}>
-                  {relatedFilters.map((filter) => (
-                    <Button
-                      key={filter.key}
-                      size='small'
-                      type={
-                        relatedFilter === filter.key ? 'primary' : 'tertiary'
-                      }
-                      onClick={() => setRelatedFilter(filter.key)}
-                    >
-                      {`${filter.label} (${filter.count})`}
-                    </Button>
-                  ))}
-                </Space>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: 8,
-                  }}
-                >
-                  {filteredRelatedRecords.map((record) => (
-                    <Button
-                      key={record.request_id}
-                      size='small'
-                      type={
-                        record.request_id === auditRecord.request_id
-                          ? 'primary'
-                          : 'tertiary'
-                      }
-                      disabled={
-                        !onOpenRequestAudit ||
-                        record.request_id === auditRecord.request_id
-                      }
-                      style={{
-                        justifyContent: 'flex-start',
-                        height: 'auto',
-                        padding: '10px 12px',
-                        whiteSpace: 'normal',
-                      }}
-                      onClick={() => onOpenRequestAudit?.(record.request_id)}
-                    >
-                      <div style={{ textAlign: 'left', lineHeight: 1.5 }}>
-                        <div style={{ fontWeight: 600 }}>
-                          {renderRelatedTitle(record, t)}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: 'var(--semi-color-text-2)',
-                            marginTop: 2,
-                            wordBreak: 'break-all',
-                          }}
-                        >
-                          {formatAuditTimestamp(record.created_at)}
-                        </div>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              </SectionPanel>
-            ) : null}
-            <SectionPanel
-              title={t('请求详情')}
-              subtitle={
-                payloadsLoaded
-                  ? t('以结构化 JSON 视图查看请求、响应与链路原始内容')
-                  : t('大体积请求与响应内容会在弹窗打开后后台补载')
-              }
-              extra={
-                payloadLoading ? (
-                  <Tag color='cyan' shape='circle'>
-                    {t('明细加载中')}
-                  </Tag>
-                ) : null
-              }
-            >
-              <Tabs
-                type='card'
-                activeKey={activeDetailTab}
-                onChange={setActiveDetailTab}
-              >
-                <TabPane tab={t('原始概览')} itemKey='summary'>
-                  <Typography.Text
-                    type='tertiary'
-                    style={{ display: 'block', marginBottom: 12 }}
-                  >
-                    {t('以下内容为审计记录的基础字段快照')}
-                  </Typography.Text>
-                  <JsonBlock
-                    t={t}
-                    value={{
-                      request_id: auditRecord.request_id,
-                      route_group: auditRecord.route_group,
-                      route_path: auditRecord.route_path,
-                      method: auditRecord.method,
-                      status_code: auditRecord.status_code,
-                      success: auditRecord.success,
-                      relay_format: auditRecord.relay_format,
-                      relay_mode: auditRecord.relay_mode,
-                      model_name: auditRecord.model_name,
-                      upstream_model_name: auditRecord.upstream_model_name,
-                      group: auditRecord.group,
-                      token_id: auditRecord.token_id,
-                      token_name: auditRecord.token_name,
-                      channel_id: auditRecord.channel_id,
-                      channel_name: auditRecord.channel_name,
-                      channel_type: auditRecord.channel_type,
-                      task_id: auditRecord.task_id,
-                      mj_id: auditRecord.mj_id,
-                      latency_ms: auditRecord.latency_ms,
-                      first_response_ms: auditRecord.first_response_ms,
-                      retry_count: auditRecord.retry_count,
-                    }}
-                  />
-                </TabPane>
-                <TabPane tab={t('请求')} itemKey='request'>
-                  {activeDetailTab === 'request' && payloadsLoaded ? (
-                    <JsonBlock value={auditRecord.request} t={t} />
-                  ) : (
-                    renderPayloadPlaceholder()
-                  )}
-                </TabPane>
-                <TabPane tab={t('响应')} itemKey='response'>
-                  {activeDetailTab === 'response' && payloadsLoaded ? (
-                    <JsonBlock value={auditRecord.response} t={t} />
-                  ) : (
-                    renderPayloadPlaceholder()
-                  )}
-                </TabPane>
-                <TabPane tab={t('链路')} itemKey='trace'>
-                  {activeDetailTab === 'trace' && payloadsLoaded ? (
-                    <JsonBlock value={auditRecord.trace} t={t} />
-                  ) : (
-                    renderPayloadPlaceholder()
-                  )}
-                </TabPane>
-              </Tabs>
-            </SectionPanel>
-          </div>
-        )}
-      </Spin>
+          )}
+        </Spin>
+      </div>
     </Modal>
   );
 };

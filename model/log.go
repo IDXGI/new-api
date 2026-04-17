@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -50,6 +51,8 @@ const (
 	LogTypeError   = 5
 	LogTypeRefund  = 6
 )
+
+const logAggregatedTextPreviewRuneLimit = 2000
 
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
@@ -319,8 +322,22 @@ func hydrateLogsAggregatedText(logs []*Log) {
 		if logs[i] == nil || logs[i].RequestId == "" {
 			continue
 		}
-		logs[i].AggregatedText = aggregatedTextMap[logs[i].RequestId]
+		logs[i].AggregatedText = truncateLogAggregatedTextPreview(
+			aggregatedTextMap[logs[i].RequestId],
+		)
 	}
+}
+
+func truncateLogAggregatedTextPreview(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	runes := []rune(text)
+	if len(runes) <= logAggregatedTextPreviewRuneLimit {
+		return text
+	}
+	return strings.TrimSpace(string(runes[:logAggregatedTextPreviewRuneLimit])) + "..."
 }
 
 func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string) (logs []*Log, total int64, err error) {

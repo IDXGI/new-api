@@ -56,6 +56,8 @@ const colors = [
   'yellow',
 ];
 
+const LOG_ANSWER_PREVIEW_CHAR_LIMIT = 1600;
+
 function formatRatio(ratio) {
   if (ratio === undefined || ratio === null) {
     return '-';
@@ -377,11 +379,16 @@ function normalizeDetailText(detail) {
 }
 
 function normalizeAggregatedText(text) {
-  return String(text || '')
+  const normalized = String(text || '')
     .replace(/\n\r/g, '\n')
     .replace(/\r\n/g, '\n')
     .replace(/\s+/g, ' ')
     .trim();
+  const chars = Array.from(normalized);
+  if (chars.length <= LOG_ANSWER_PREVIEW_CHAR_LIMIT) {
+    return normalized;
+  }
+  return `${chars.slice(0, LOG_ANSWER_PREVIEW_CHAR_LIMIT).join('').trim()}...`;
 }
 
 function getUsageLogGroupSummary(groupRatio, userGroupRatio, t) {

@@ -209,6 +209,21 @@ export const useLogsData = () => {
     }
   };
 
+  const syncVisibleColumnsFromStorage = () => {
+    setVisibleColumns((prev) => {
+      const next = getInitialVisibleColumns();
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => prev[key] === next[key])
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  };
+
   const getInitialBillingDisplayMode = () => {
     const savedMode = localStorage.getItem(BILLING_DISPLAY_MODE_STORAGE_KEY);
     if (savedMode === 'price' || savedMode === 'ratio') {
@@ -357,23 +372,8 @@ export const useLogsData = () => {
     if (!requestAuditStatusReady || !canViewRequestAudit) {
       return;
     }
-    const storedAuditVisibility = getStoredAuditVisibility();
-    setVisibleColumns((prev) => {
-      if (Object.keys(prev).length === 0) {
-        return {
-          ...getDefaultColumnVisibility(),
-          [COLUMN_KEYS.AUDIT]: storedAuditVisibility,
-        };
-      }
-      if (prev[COLUMN_KEYS.AUDIT] === storedAuditVisibility) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [COLUMN_KEYS.AUDIT]: storedAuditVisibility,
-      };
-    });
-  }, [canViewRequestAudit, requestAuditStatusReady]);
+    syncVisibleColumnsFromStorage();
+  }, [canViewRequestAudit, requestAuditStatusReady, STORAGE_KEY]);
 
   useEffect(() => {
     localStorage.setItem(BILLING_DISPLAY_MODE_STORAGE_KEY, billingDisplayMode);

@@ -499,7 +499,8 @@ export const getMjLogsColumns = ({
         return (
           <Button
             size='small'
-            onClick={() => {
+            onClick={(event) => {
+              event.stopPropagation();
               openAuditByMjId(text);
             }}
           >

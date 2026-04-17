@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -16,35 +17,37 @@ func GetRequestAuditByRequestID(c *gin.Context) {
 		return
 	}
 	audit, err := model.GetRequestAuditByRequestID(c.Param("request_id"))
-	respondRequestAudit(c, audit, nil, err)
+	respondRequestAudit(c, audit, nil, err, shouldIncludeRequestAuditPayloads(c))
 }
 
 func GetRequestAuditByTaskID(c *gin.Context) {
 	if !ensureRequestAuditAdmin(c) {
 		return
 	}
+	includePayloads := shouldIncludeRequestAuditPayloads(c)
 	taskID := c.Param("task_id")
 	audit, err := model.GetPreferredRequestAuditByTaskID(taskID)
 	if err != nil {
-		respondRequestAudit(c, audit, nil, err)
+		respondRequestAudit(c, audit, nil, err, includePayloads)
 		return
 	}
 	related, relatedErr := model.ListRequestAuditsByTaskID(taskID, 10)
-	respondRequestAudit(c, audit, related, relatedErr)
+	respondRequestAudit(c, audit, related, relatedErr, includePayloads)
 }
 
 func GetRequestAuditByMJID(c *gin.Context) {
 	if !ensureRequestAuditAdmin(c) {
 		return
 	}
+	includePayloads := shouldIncludeRequestAuditPayloads(c)
 	mjID := c.Param("mj_id")
 	audit, err := model.GetPreferredRequestAuditByMJID(mjID)
 	if err != nil {
-		respondRequestAudit(c, audit, nil, err)
+		respondRequestAudit(c, audit, nil, err, includePayloads)
 		return
 	}
 	related, relatedErr := model.ListRequestAuditsByMJID(mjID, 10)
-	respondRequestAudit(c, audit, related, relatedErr)
+	respondRequestAudit(c, audit, related, relatedErr, includePayloads)
 }
 
 func ensureRequestAuditAdmin(c *gin.Context) bool {
@@ -58,7 +61,7 @@ func ensureRequestAuditAdmin(c *gin.Context) bool {
 	return false
 }
 
-func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*model.RequestAudit, err error) {
+func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*model.RequestAudit, err error, includePayloads bool) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || model.IsRequestAuditNotFound(err) {
 			c.JSON(http.StatusOK, gin.H{
@@ -70,16 +73,21 @@ func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*m
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related)))
+	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related), includePayloads))
 }
 
-func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H) gin.H {
-	requestPayload := parseAuditPayload(string(audit.RequestPayload))
-	responsePayload := parseAuditPayload(string(audit.ResponsePayload))
-	tracePayload := parseAuditPayload(string(audit.TracePayload))
+func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H, includePayloads bool) gin.H {
+	var requestPayload any
+	var responsePayload any
+	var tracePayload any
+	if includePayloads {
+		requestPayload = parseAuditPayload(string(audit.RequestPayload))
+		responsePayload = parseAuditPayload(string(audit.ResponsePayload))
+		tracePayload = parseAuditPayload(string(audit.TracePayload))
+	}
 	upstreamModelName, tracePayload := enrichAuditModelResolution(audit, tracePayload)
 	aggregatedText := model.ExtractAggregatedTextFromResponsePayload(string(audit.ResponsePayload))
-	return gin.H{
+	response := gin.H{
 		"id":                  audit.ID,
 		"request_id":          audit.RequestID,
 		"user_id":             audit.UserId,
@@ -112,11 +120,15 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		"first_response_ms":   audit.FirstResponseMs,
 		"retry_count":         audit.RetryCount,
 		"aggregated_text":     aggregatedText,
-		"request":             requestPayload,
-		"response":            responsePayload,
-		"trace":               tracePayload,
+		"payloads_loaded":     includePayloads,
 		"related_records":     relatedRecords,
 	}
+	if includePayloads {
+		response["request"] = requestPayload
+		response["response"] = responsePayload
+		response["trace"] = tracePayload
+	}
+	return response
 }
 
 func enrichAuditModelResolution(audit *model.RequestAudit, tracePayload any) (string, any) {
@@ -230,4 +242,16 @@ func parseAuditPayload(raw string) any {
 		return raw
 	}
 	return payload
+}
+
+func shouldIncludeRequestAuditPayloads(c *gin.Context) bool {
+	raw := strings.TrimSpace(strings.ToLower(c.Query("include_payloads")))
+	switch raw {
+	case "", "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
 }

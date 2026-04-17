@@ -40,12 +40,10 @@ const MjLogsPage = () => {
       <ColumnSelectorModal {...mjLogsData} />
       <ContentModal {...mjLogsData} />
       <RequestAuditModal
-        visible={mjLogsData.showAuditModal || Boolean(mjLogsData.auditRecord)}
-        onCancel={() => {
-          mjLogsData.setShowAuditModal(false);
-          mjLogsData.setAuditRecord(null);
-        }}
+        visible={mjLogsData.showAuditModal}
+        onCancel={mjLogsData.closeAuditModal}
         loading={mjLogsData.auditLoading}
+        payloadLoading={mjLogsData.auditPayloadLoading}
         auditRecord={mjLogsData.auditRecord}
         onOpenRequestAudit={mjLogsData.openAuditByRequestId}
         t={mjLogsData.t}

@@ -397,7 +397,10 @@ export const getTaskLogsColumns = ({
           <Button
             size='small'
             type='tertiary'
-            onClick={() => openAuditByTaskId(text)}
+            onClick={(event) => {
+              event.stopPropagation();
+              openAuditByTaskId(text);
+            }}
           >
             {t('查看')}
           </Button>

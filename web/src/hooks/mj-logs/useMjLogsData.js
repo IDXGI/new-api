@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@douyinfe/semi-ui';
 import {
@@ -85,7 +85,9 @@ export const useMjLogsData = () => {
   const [modalImageUrl, setModalImageUrl] = useState('');
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [auditPayloadLoading, setAuditPayloadLoading] = useState(false);
   const [auditRecord, setAuditRecord] = useState(null);
+  const auditRequestSeqRef = useRef(0);
 
   // Form state
   const [formApi, setFormApi] = useState(null);
@@ -376,25 +378,39 @@ export const useMjLogsData = () => {
       showError(t('当前审计记录没有可用的 Request ID'));
       return;
     }
+    const requestSeq = auditRequestSeqRef.current + 1;
+    auditRequestSeqRef.current = requestSeq;
+    setShowAuditModal(true);
     setAuditRecord(null);
     setAuditLoading(true);
+    setAuditPayloadLoading(false);
     try {
-      const res = await API.get(`/api/request-audit/${requestId}`);
+      const res = await API.get(
+        `/api/request-audit/${requestId}?include_payloads=false`,
+      );
       const { success, message, data } = res.data;
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       if (success) {
         setAuditRecord(data);
-        setShowAuditModal(true);
+        setAuditLoading(false);
+        void loadAuditPayloadByRequestId(data?.request_id, requestSeq);
       } else {
         setAuditRecord(null);
         setShowAuditModal(false);
+        setAuditLoading(false);
         showError(message);
       }
     } catch (error) {
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       setAuditRecord(null);
       setShowAuditModal(false);
+      setAuditLoading(false);
       showError(t('获取请求审计详情失败'));
     }
-    setAuditLoading(false);
   };
 
   const openAuditByMjId = async (mjId) => {
@@ -405,25 +421,86 @@ export const useMjLogsData = () => {
       showError(t('当前绘图记录没有可用的 MjID'));
       return;
     }
+    const requestSeq = auditRequestSeqRef.current + 1;
+    auditRequestSeqRef.current = requestSeq;
+    setShowAuditModal(true);
     setAuditRecord(null);
     setAuditLoading(true);
+    setAuditPayloadLoading(false);
     try {
-      const res = await API.get(`/api/request-audit/mj/${mjId}`);
+      const res = await API.get(
+        `/api/request-audit/mj/${mjId}?include_payloads=false`,
+      );
       const { success, message, data } = res.data;
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       if (success) {
         setAuditRecord(data);
-        setShowAuditModal(true);
+        setAuditLoading(false);
+        void loadAuditPayloadByRequestId(data?.request_id, requestSeq);
       } else {
         setAuditRecord(null);
         setShowAuditModal(false);
+        setAuditLoading(false);
         showError(message);
       }
     } catch (error) {
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       setAuditRecord(null);
       setShowAuditModal(false);
+      setAuditLoading(false);
       showError(t('获取请求审计详情失败'));
     }
+  };
+
+  const loadAuditPayloadByRequestId = async (
+    requestId,
+    requestSeq = auditRequestSeqRef.current,
+  ) => {
+    if (!requestId || !canViewRequestAudit) {
+      return;
+    }
+    setAuditPayloadLoading(true);
+    try {
+      const res = await API.get(`/api/request-audit/${requestId}`);
+      const { success, message, data } = res.data;
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
+      if (success) {
+        setAuditRecord((prev) => {
+          if (!prev || prev.request_id !== requestId) {
+            return data;
+          }
+          return {
+            ...prev,
+            ...data,
+          };
+        });
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
+      showError(t('获取请求审计详情失败'));
+    } finally {
+      if (requestSeq === auditRequestSeqRef.current) {
+        setAuditPayloadLoading(false);
+      }
+    }
+  };
+
+  const closeAuditModal = () => {
+    auditRequestSeqRef.current += 1;
+    setShowAuditModal(false);
     setAuditLoading(false);
+    setAuditPayloadLoading(false);
+    setAuditRecord(null);
   };
 
   // Initialize data
@@ -454,6 +531,7 @@ export const useMjLogsData = () => {
     showAuditModal,
     setShowAuditModal,
     auditLoading,
+    auditPayloadLoading,
     auditRecord,
     setAuditRecord,
 
@@ -487,6 +565,7 @@ export const useMjLogsData = () => {
     openImageModal,
     openAuditByRequestId,
     openAuditByMjId,
+    closeAuditModal,
     enrichLogs,
     syncPageData,
 

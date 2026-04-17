@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@douyinfe/semi-ui';
 import {
@@ -244,7 +244,9 @@ export const useLogsData = () => {
   const [paramOverrideTarget, setParamOverrideTarget] = useState(null);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [auditPayloadLoading, setAuditPayloadLoading] = useState(false);
   const [auditRecord, setAuditRecord] = useState(null);
+  const auditRequestSeqRef = useRef(0);
 
   // Initialize default column visibility
   const initDefaultColumns = () => {
@@ -517,25 +519,86 @@ export const useLogsData = () => {
       showError(t('当前日志没有可用的 Request ID'));
       return;
     }
+    const requestSeq = auditRequestSeqRef.current + 1;
+    auditRequestSeqRef.current = requestSeq;
+    setShowAuditModal(true);
     setAuditRecord(null);
     setAuditLoading(true);
+    setAuditPayloadLoading(false);
     try {
-      const res = await API.get(`/api/request-audit/${requestId}`);
+      const res = await API.get(
+        `/api/request-audit/${requestId}?include_payloads=false`,
+      );
       const { success, message, data } = res.data;
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       if (success) {
         setAuditRecord(data);
-        setShowAuditModal(true);
+        setAuditLoading(false);
+        void loadAuditPayloadByRequestId(data?.request_id, requestSeq);
       } else {
         setAuditRecord(null);
         setShowAuditModal(false);
+        setAuditLoading(false);
         showError(message);
       }
     } catch (error) {
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
       setAuditRecord(null);
       setShowAuditModal(false);
+      setAuditLoading(false);
       showError(t('获取请求审计详情失败'));
     }
+  };
+
+  const loadAuditPayloadByRequestId = async (
+    requestId,
+    requestSeq = auditRequestSeqRef.current,
+  ) => {
+    if (!requestId || !canViewRequestAudit) {
+      return;
+    }
+    setAuditPayloadLoading(true);
+    try {
+      const res = await API.get(`/api/request-audit/${requestId}`);
+      const { success, message, data } = res.data;
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
+      if (success) {
+        setAuditRecord((prev) => {
+          if (!prev || prev.request_id !== requestId) {
+            return data;
+          }
+          return {
+            ...prev,
+            ...data,
+          };
+        });
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      if (requestSeq !== auditRequestSeqRef.current) {
+        return;
+      }
+      showError(t('获取请求审计详情失败'));
+    } finally {
+      if (requestSeq === auditRequestSeqRef.current) {
+        setAuditPayloadLoading(false);
+      }
+    }
+  };
+
+  const closeAuditModal = () => {
+    auditRequestSeqRef.current += 1;
+    setShowAuditModal(false);
     setAuditLoading(false);
+    setAuditPayloadLoading(false);
+    setAuditRecord(null);
   };
 
   // Format logs data
@@ -1132,9 +1195,11 @@ export const useLogsData = () => {
     showAuditModal,
     setShowAuditModal,
     auditLoading,
+    auditPayloadLoading,
     auditRecord,
     setAuditRecord,
     openAuditByRequestId,
+    closeAuditModal,
 
     // Functions
     loadLogs,

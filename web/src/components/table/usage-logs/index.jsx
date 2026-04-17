@@ -43,12 +43,10 @@ const LogsPage = () => {
       <ChannelAffinityUsageCacheModal {...logsData} />
       <ParamOverrideModal {...logsData} />
       <RequestAuditModal
-        visible={logsData.showAuditModal || Boolean(logsData.auditRecord)}
-        onCancel={() => {
-          logsData.setShowAuditModal(false);
-          logsData.setAuditRecord(null);
-        }}
+        visible={logsData.showAuditModal}
+        onCancel={logsData.closeAuditModal}
         loading={logsData.auditLoading}
+        payloadLoading={logsData.auditPayloadLoading}
         auditRecord={logsData.auditRecord}
         onOpenRequestAudit={logsData.openAuditByRequestId}
         t={logsData.t}

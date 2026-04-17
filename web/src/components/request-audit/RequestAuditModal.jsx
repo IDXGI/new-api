@@ -294,14 +294,17 @@ const RequestAuditModal = ({
   visible,
   onCancel,
   loading,
+  payloadLoading,
   auditRecord,
   onOpenRequestAudit,
   t,
 }) => {
   const [relatedFilter, setRelatedFilter] = useState(RELATED_FILTER_ALL);
+  const [activeDetailTab, setActiveDetailTab] = useState('summary');
 
   useEffect(() => {
     setRelatedFilter(RELATED_FILTER_ALL);
+    setActiveDetailTab('summary');
   }, [auditRecord?.request_id, visible]);
 
   const relatedFilters = useMemo(() => {
@@ -412,6 +415,35 @@ const RequestAuditModal = ({
     : [];
 
   const aggregatedText = getAuditAggregatedText(auditRecord);
+  const payloadsLoaded = auditRecord?.payloads_loaded !== false;
+
+  const renderPayloadPlaceholder = () => {
+    if (payloadLoading) {
+      return (
+        <div
+          style={{
+            minHeight: 220,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <Spin spinning />
+          <Typography.Text type='secondary'>
+            {t('正在后台加载请求、响应与链路详情')}
+          </Typography.Text>
+        </div>
+      );
+    }
+    return (
+      <Empty
+        description={t('审计明细暂未就绪，请稍后查看')}
+        image={null}
+      />
+    );
+  };
 
   return (
     <Modal
@@ -450,8 +482,24 @@ const RequestAuditModal = ({
       }}
       centered
     >
-      <Spin spinning={loading}>
-        {!auditRecord ? (
+      <Spin spinning={loading && !auditRecord}>
+        {loading && !auditRecord ? (
+          <div
+            style={{
+              minHeight: 280,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: 12,
+            }}
+          >
+            <Typography.Text strong>{t('正在加载审计概览')}</Typography.Text>
+            <Typography.Text type='secondary'>
+              {t('弹窗已打开，详细内容会在准备完成后显示')}
+            </Typography.Text>
+          </div>
+        ) : !auditRecord ? (
           <Empty description={t('暂无审计详情')} image={null} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -472,6 +520,7 @@ const RequestAuditModal = ({
                   <Button
                     size='small'
                     type='tertiary'
+                    disabled={!payloadsLoaded || payloadLoading}
                     onClick={() =>
                       handleCopySection(t('请求内容'), auditRecord.request)
                     }
@@ -481,6 +530,7 @@ const RequestAuditModal = ({
                   <Button
                     size='small'
                     type='tertiary'
+                    disabled={!payloadsLoaded || payloadLoading}
                     onClick={() =>
                       handleCopySection(t('响应内容'), auditRecord.response)
                     }
@@ -490,6 +540,7 @@ const RequestAuditModal = ({
                   <Button
                     size='small'
                     type='tertiary'
+                    disabled={!payloadsLoaded || payloadLoading}
                     onClick={() =>
                       handleCopySection(t('链路内容'), auditRecord.trace)
                     }
@@ -727,18 +778,24 @@ const RequestAuditModal = ({
             ) : null}
             <SectionPanel
               title={t('请求详情')}
-              subtitle={t('以结构化 JSON 视图查看请求、响应与链路原始内容')}
+              subtitle={
+                payloadsLoaded
+                  ? t('以结构化 JSON 视图查看请求、响应与链路原始内容')
+                  : t('大体积请求与响应内容会在弹窗打开后后台补载')
+              }
+              extra={
+                payloadLoading ? (
+                  <Tag color='cyan' shape='circle'>
+                    {t('明细加载中')}
+                  </Tag>
+                ) : null
+              }
             >
-              <Tabs type='card'>
-                <TabPane tab={t('请求')} itemKey='request'>
-                  <JsonBlock value={auditRecord.request} t={t} />
-                </TabPane>
-                <TabPane tab={t('响应')} itemKey='response'>
-                  <JsonBlock value={auditRecord.response} t={t} />
-                </TabPane>
-                <TabPane tab={t('链路')} itemKey='trace'>
-                  <JsonBlock value={auditRecord.trace} t={t} />
-                </TabPane>
+              <Tabs
+                type='card'
+                activeKey={activeDetailTab}
+                onChange={setActiveDetailTab}
+              >
                 <TabPane tab={t('原始概览')} itemKey='summary'>
                   <Typography.Text
                     type='tertiary'
@@ -772,6 +829,27 @@ const RequestAuditModal = ({
                       retry_count: auditRecord.retry_count,
                     }}
                   />
+                </TabPane>
+                <TabPane tab={t('请求')} itemKey='request'>
+                  {activeDetailTab === 'request' && payloadsLoaded ? (
+                    <JsonBlock value={auditRecord.request} t={t} />
+                  ) : (
+                    renderPayloadPlaceholder()
+                  )}
+                </TabPane>
+                <TabPane tab={t('响应')} itemKey='response'>
+                  {activeDetailTab === 'response' && payloadsLoaded ? (
+                    <JsonBlock value={auditRecord.response} t={t} />
+                  ) : (
+                    renderPayloadPlaceholder()
+                  )}
+                </TabPane>
+                <TabPane tab={t('链路')} itemKey='trace'>
+                  {activeDetailTab === 'trace' && payloadsLoaded ? (
+                    <JsonBlock value={auditRecord.trace} t={t} />
+                  ) : (
+                    renderPayloadPlaceholder()
+                  )}
                 </TabPane>
               </Tabs>
             </SectionPanel>

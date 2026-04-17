@@ -53,14 +53,10 @@ const TaskLogsPage = () => {
         audioClips={taskLogsData.audioClips}
       />
       <RequestAuditModal
-        visible={
-          taskLogsData.showAuditModal || Boolean(taskLogsData.auditRecord)
-        }
-        onCancel={() => {
-          taskLogsData.setShowAuditModal(false);
-          taskLogsData.setAuditRecord(null);
-        }}
+        visible={taskLogsData.showAuditModal}
+        onCancel={taskLogsData.closeAuditModal}
         loading={taskLogsData.auditLoading}
+        payloadLoading={taskLogsData.auditPayloadLoading}
         auditRecord={taskLogsData.auditRecord}
         onOpenRequestAudit={taskLogsData.openAuditByRequestId}
         t={taskLogsData.t}

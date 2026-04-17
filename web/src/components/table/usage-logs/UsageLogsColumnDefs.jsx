@@ -995,7 +995,10 @@ export const getLogsColumns = ({
           <Button
             size='small'
             type='tertiary'
-            onClick={() => openAuditByRequestId(record.request_id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              openAuditByRequestId(record.request_id);
+            }}
           >
             {t('查看')}
           </Button>

@@ -13,7 +13,42 @@ const (
 	auditTextModeFragment
 )
 
-var auditTextContainerKeys = []string{
+var auditTextSnapshotContainerKeys = []string{
+	"choices",
+	"choice",
+	"candidate",
+	"candidates",
+	"message",
+	"content",
+	"contents",
+	"part",
+	"parts",
+	"output",
+	"outputs",
+	"item",
+	"items",
+	"response",
+	"responses",
+	"result",
+	"results",
+	"error",
+	"errors",
+	"data",
+	"tool_call",
+	"tool_calls",
+	"function_call",
+	"function_calls",
+	"call",
+	"calls",
+	"chunk",
+	"chunks",
+	"segment",
+	"segments",
+	"block",
+	"blocks",
+}
+
+var auditTextFragmentContainerKeys = []string{
 	"choices",
 	"choice",
 	"candidate",
@@ -136,9 +171,6 @@ func ExtractAggregatedTextFromAuditPayload(payload map[string]any) string {
 	if len(payload) == 0 {
 		return ""
 	}
-	if aggregated := normalizeAuditTextValue(common.Interface2String(payload["aggregated_text"]), auditTextModeSnapshot); aggregated != "" {
-		return aggregated
-	}
 	if bodyJSON, ok := payload["body_json"]; ok {
 		if text := extractRepresentativeAuditText(bodyJSON, auditTextModeSnapshot); text != "" {
 			return text
@@ -172,10 +204,15 @@ func ExtractAggregatedTextFromAuditPayload(payload map[string]any) string {
 		}
 		return ""
 	case "text", "":
-		return normalizeAuditTextValue(bodyText, auditTextModeSnapshot)
+		if text := normalizeAuditTextValue(bodyText, auditTextModeSnapshot); text != "" {
+			return text
+		}
 	default:
-		return normalizeAuditTextValue(bodyText, auditTextModeSnapshot)
+		if text := normalizeAuditTextValue(bodyText, auditTextModeSnapshot); text != "" {
+			return text
+		}
 	}
+	return normalizeAuditTextValue(common.Interface2String(payload["aggregated_text"]), auditTextModeSnapshot)
 }
 
 func extractAuditTextFromEventStream(bodyText string, mode auditTextMode) string {
@@ -228,7 +265,7 @@ func extractRepresentativeAuditText(value any, mode auditTextMode) string {
 
 func extractAuditTextFromMap(item map[string]any, mode auditTextMode) string {
 	processed := make(map[string]struct{})
-	if text := collectAuditTextFromKeys(item, auditTextContainerKeys, mode, processed); text != "" {
+	if text := collectAuditTextFromKeys(item, auditTextContainerKeysForMode(mode), mode, processed); text != "" {
 		return text
 	}
 	if text := collectAuditTextFromKeys(item, auditTextPrimaryKeys, mode, processed); text != "" {
@@ -259,6 +296,13 @@ func collectAuditTextFromKeys(item map[string]any, keys []string, mode auditText
 		return joinAuditTextParts(parts, "", false)
 	}
 	return joinAuditTextParts(parts, "\n", true)
+}
+
+func auditTextContainerKeysForMode(mode auditTextMode) []string {
+	if mode == auditTextModeFragment {
+		return auditTextFragmentContainerKeys
+	}
+	return auditTextSnapshotContainerKeys
 }
 
 func extractAuditTextFromField(key string, value any, mode auditTextMode) string {

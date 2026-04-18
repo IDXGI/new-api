@@ -52,6 +52,51 @@ func TestExtractAggregatedTextFromResponsePayload_FallsBackToDeltaFragments(t *t
 	require.Equal(t, "Hello", aggregated)
 }
 
+func TestExtractAggregatedTextFromResponsePayload_DoesNotInsertExtraChunkNewlines(t *testing.T) {
+	bodyText := strings.Join([]string{
+		`data: {"id":"resp_x","choices":[{"delta":{"content":"Hello"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":", I"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":" am"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":" Cod"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":"ex"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":".\\n\\n"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":"- Model"}}]}`,
+	}, "\n")
+
+	rawPayload, err := common.Marshal(map[string]any{
+		"body_kind": "event_stream",
+		"body_text": bodyText,
+	})
+	require.NoError(t, err)
+
+	aggregated := ExtractAggregatedTextFromResponsePayload(string(rawPayload))
+	require.Equal(t, "Hello, I am Codex.\n\n- Model", aggregated)
+}
+
+func TestExtractAggregatedTextFromResponsePayload_RecomputesOverBrokenStoredValue(t *testing.T) {
+	bodyText := strings.Join([]string{
+		`data: {"id":"resp_x","choices":[{"delta":{"content":"Hello"}}]}`,
+		"",
+		`data: {"id":"resp_x","choices":[{"delta":{"content":" world"}}]}`,
+	}, "\n")
+
+	rawPayload, err := common.Marshal(map[string]any{
+		"aggregated_text": "H\n\ne\n\nl\n\nl\n\no",
+		"body_kind":       "event_stream",
+		"body_text":       bodyText,
+	})
+	require.NoError(t, err)
+
+	aggregated := ExtractAggregatedTextFromResponsePayload(string(rawPayload))
+	require.Equal(t, "Hello world", aggregated)
+}
+
 func TestExtractAggregatedTextFromAuditPayload_FallsBackToStructuredJSONContent(t *testing.T) {
 	aggregated := ExtractAggregatedTextFromAuditPayload(map[string]any{
 		"body_kind": "json",

@@ -553,9 +553,6 @@ func captureRequestAuditResponse(c *gin.Context, state *requestAuditState) {
 	if strings.Contains(contentType, "text/event-stream") {
 		state.ResponsePayload["body_kind"] = "event_stream"
 		state.ResponsePayload["body_text"] = rawText
-		if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
-			state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
-		}
 		return
 	}
 	var payload any
@@ -563,16 +560,10 @@ func captureRequestAuditResponse(c *gin.Context, state *requestAuditState) {
 		state.ResponsePayload["body_kind"] = "json"
 		state.ResponsePayload["body_text"] = rawText
 		state.ResponsePayload["body_json"] = sanitizeObject(payload)
-		if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
-			state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
-		}
 		return
 	}
 	state.ResponsePayload["body_kind"] = "text"
 	state.ResponsePayload["body_text"] = rawText
-	if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
-		state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
-	}
 }
 
 func sanitizeHeaders(headers http.Header) map[string]string {

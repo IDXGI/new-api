@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -786,67 +787,259 @@ func safeParseJSON(raw string) any {
 }
 
 func aggregateSSEText(body []byte) string {
-	lines := strings.Split(string(body), "\n")
+	events := parseSSEEvents(body)
+	if len(events) == 0 {
+		return ""
+	}
+
 	var builder strings.Builder
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "data:") {
-			continue
-		}
-		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+	sawResponsesOutputText := false
+	for _, event := range events {
+		payload := strings.TrimSpace(event.data)
 		if payload == "" || payload == "[DONE]" {
 			continue
 		}
+
 		var item any
 		if common.Unmarshal([]byte(payload), &item) != nil {
 			continue
 		}
-		appendStreamText(&builder, item)
+
+		text, hasResponsesOutputText := extractSSEEventText(event.name, item, sawResponsesOutputText)
+		if hasResponsesOutputText {
+			sawResponsesOutputText = true
+		}
+		if text != "" {
+			builder.WriteString(text)
+		}
 	}
 	return builder.String()
 }
 
-func appendStreamText(builder *strings.Builder, payload any) {
+type sseEvent struct {
+	name string
+	data string
+}
+
+func parseSSEEvents(body []byte) []sseEvent {
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	bufferSize := getRequestAuditMaxTextBytes()
+	if bufferSize < 64*1024 {
+		bufferSize = 64 * 1024
+	}
+	scanner.Buffer(make([]byte, 0, 64*1024), bufferSize+64*1024)
+
+	events := make([]sseEvent, 0)
+	currentName := ""
+	dataLines := make([]string, 0)
+
+	flush := func() {
+		if len(dataLines) == 0 {
+			currentName = ""
+			return
+		}
+		events = append(events, sseEvent{
+			name: currentName,
+			data: strings.Join(dataLines, "\n"),
+		})
+		currentName = ""
+		dataLines = dataLines[:0]
+	}
+
+	for scanner.Scan() {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if line == "" {
+			flush()
+			continue
+		}
+		if strings.HasPrefix(line, ":") {
+			continue
+		}
+
+		field, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		value = strings.TrimPrefix(value, " ")
+
+		switch field {
+		case "event":
+			currentName = strings.TrimSpace(value)
+		case "data":
+			dataLines = append(dataLines, value)
+		}
+	}
+	flush()
+	return events
+}
+
+func extractSSEEventText(eventName string, payload any, sawResponsesOutputText bool) (string, bool) {
+	value, ok := payload.(map[string]any)
+	if !ok {
+		return "", false
+	}
+
+	eventType := strings.TrimSpace(common.Interface2String(value["type"]))
+	if eventType == "" {
+		eventType = strings.TrimSpace(eventName)
+	}
+
+	switch eventType {
+	case "response.output_text.delta":
+		text := common.Interface2String(value["delta"])
+		return text, text != ""
+	case "response.output_text.done":
+		if sawResponsesOutputText {
+			return "", false
+		}
+		text := common.Interface2String(value["text"])
+		return text, text != ""
+	case "response.output_item.done":
+		if sawResponsesOutputText {
+			return "", false
+		}
+		text := extractResponsesOutputItemText(value["item"])
+		return text, text != ""
+	case "response.completed":
+		if sawResponsesOutputText {
+			return "", false
+		}
+		response, ok := value["response"].(map[string]any)
+		if !ok {
+			return "", false
+		}
+		return extractResponsesOutputText(response["output"]), false
+	case "response.reasoning_text.delta",
+		"response.reasoning_text.done",
+		"response.reasoning_summary_text.delta",
+		"response.reasoning_summary_text.done",
+		"response.reasoning_summary_part.added",
+		"response.reasoning_summary_part.done",
+		"response.custom_tool_call_input.delta",
+		"response.custom_tool_call_input.done",
+		"response.function_call_arguments.delta",
+		"response.function_call_arguments.done":
+		return "", false
+	default:
+		return extractGenericStreamText(payload), false
+	}
+}
+
+func extractGenericStreamText(payload any) string {
 	switch value := payload.(type) {
 	case map[string]any:
+		var builder strings.Builder
 		if choices, ok := value["choices"].([]any); ok {
 			for _, choice := range choices {
-				appendStreamText(builder, choice)
+				builder.WriteString(extractGenericStreamText(choice))
 			}
 		}
 		if delta, ok := value["delta"].(map[string]any); ok {
-			appendStreamText(builder, delta)
+			builder.WriteString(extractGenericStreamText(delta))
 		}
 		if message, ok := value["message"].(map[string]any); ok {
-			appendStreamText(builder, message)
+			builder.WriteString(extractGenericStreamText(message))
 		}
 		if output, ok := value["output"].([]any); ok {
-			for _, item := range output {
-				appendStreamText(builder, item)
-			}
+			builder.WriteString(extractResponsesOutputText(output))
 		}
 		if content, ok := value["content"].([]any); ok {
-			for _, item := range content {
-				appendStreamText(builder, item)
-			}
+			builder.WriteString(extractContentPartsText(content))
 		}
-		if text, ok := value["text"].(string); ok && text != "" {
+		if text, ok := value["text"].(string); ok && text != "" && shouldUseStreamTextField(value) {
 			builder.WriteString(text)
 		}
-		if content, ok := value["content"].(string); ok && content != "" {
+		if content, ok := value["content"].(string); ok && content != "" && shouldUseStreamContentField(value) {
 			builder.WriteString(content)
 		}
-		if reasoning, ok := value["reasoning_content"].(string); ok && reasoning != "" {
-			builder.WriteString(reasoning)
-		}
+		return builder.String()
 	case []any:
+		var builder strings.Builder
 		for _, item := range value {
-			appendStreamText(builder, item)
+			builder.WriteString(extractGenericStreamText(item))
 		}
-	case string:
-		if value != "" {
-			builder.WriteString(value)
+		return builder.String()
+	}
+	return ""
+}
+
+func extractResponsesOutputText(output any) string {
+	items, ok := output.([]any)
+	if !ok {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, item := range items {
+		builder.WriteString(extractResponsesOutputItemText(item))
+	}
+	return builder.String()
+}
+
+func extractResponsesOutputItemText(item any) string {
+	value, ok := item.(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	itemType := strings.TrimSpace(common.Interface2String(value["type"]))
+	if itemType != "" && itemType != "message" {
+		return ""
+	}
+
+	role := strings.TrimSpace(common.Interface2String(value["role"]))
+	if role != "" && role != "assistant" {
+		return ""
+	}
+
+	return extractContentPartsText(value["content"])
+}
+
+func extractContentPartsText(content any) string {
+	items, ok := content.([]any)
+	if !ok {
+		return ""
+	}
+
+	var builder strings.Builder
+	for _, item := range items {
+		switch part := item.(type) {
+		case map[string]any:
+			partType := strings.TrimSpace(common.Interface2String(part["type"]))
+			switch partType {
+			case "", "text", "output_text":
+				if text := common.Interface2String(part["text"]); text != "" {
+					builder.WriteString(text)
+					continue
+				}
+				if text := common.Interface2String(part["content"]); text != "" {
+					builder.WriteString(text)
+				}
+			}
+		case string:
+			builder.WriteString(part)
 		}
+	}
+	return builder.String()
+}
+
+func shouldUseStreamTextField(value map[string]any) bool {
+	fieldType := strings.TrimSpace(common.Interface2String(value["type"]))
+	switch fieldType {
+	case "", "text", "output_text", "text_delta":
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldUseStreamContentField(value map[string]any) bool {
+	fieldType := strings.TrimSpace(common.Interface2String(value["type"]))
+	switch fieldType {
+	case "", "message":
+		return true
+	default:
+		return false
 	}
 }
 

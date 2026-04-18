@@ -169,7 +169,7 @@ func ExtractAggregatedTextFromResponsePayload(raw string) string {
 	if err := common.Unmarshal([]byte(raw), &payload); err != nil {
 		return ""
 	}
-	return strings.TrimSpace(common.Interface2String(payload["aggregated_text"]))
+	return ExtractAggregatedTextFromAuditPayload(payload)
 }
 
 func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, error) {

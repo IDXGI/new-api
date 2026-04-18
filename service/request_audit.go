@@ -553,7 +553,7 @@ func captureRequestAuditResponse(c *gin.Context, state *requestAuditState) {
 	if strings.Contains(contentType, "text/event-stream") {
 		state.ResponsePayload["body_kind"] = "event_stream"
 		state.ResponsePayload["body_text"] = rawText
-		if aggregated := aggregateSSEText(bodyBytes); aggregated != "" {
+		if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
 			state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
 		}
 		return
@@ -563,10 +563,16 @@ func captureRequestAuditResponse(c *gin.Context, state *requestAuditState) {
 		state.ResponsePayload["body_kind"] = "json"
 		state.ResponsePayload["body_text"] = rawText
 		state.ResponsePayload["body_json"] = sanitizeObject(payload)
+		if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
+			state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
+		}
 		return
 	}
 	state.ResponsePayload["body_kind"] = "text"
 	state.ResponsePayload["body_text"] = rawText
+	if aggregated := model.ExtractAggregatedTextFromAuditPayload(state.ResponsePayload); aggregated != "" {
+		state.ResponsePayload["aggregated_text"] = truncateAuditText(aggregated)
+	}
 }
 
 func sanitizeHeaders(headers http.Header) map[string]string {
@@ -783,71 +789,6 @@ func safeParseJSON(raw string) any {
 		return raw
 	}
 	return sanitizeObject(value)
-}
-
-func aggregateSSEText(body []byte) string {
-	lines := strings.Split(string(body), "\n")
-	var builder strings.Builder
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "data:") {
-			continue
-		}
-		payload := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
-		if payload == "" || payload == "[DONE]" {
-			continue
-		}
-		var item any
-		if common.Unmarshal([]byte(payload), &item) != nil {
-			continue
-		}
-		appendStreamText(&builder, item)
-	}
-	return builder.String()
-}
-
-func appendStreamText(builder *strings.Builder, payload any) {
-	switch value := payload.(type) {
-	case map[string]any:
-		if choices, ok := value["choices"].([]any); ok {
-			for _, choice := range choices {
-				appendStreamText(builder, choice)
-			}
-		}
-		if delta, ok := value["delta"].(map[string]any); ok {
-			appendStreamText(builder, delta)
-		}
-		if message, ok := value["message"].(map[string]any); ok {
-			appendStreamText(builder, message)
-		}
-		if output, ok := value["output"].([]any); ok {
-			for _, item := range output {
-				appendStreamText(builder, item)
-			}
-		}
-		if content, ok := value["content"].([]any); ok {
-			for _, item := range content {
-				appendStreamText(builder, item)
-			}
-		}
-		if text, ok := value["text"].(string); ok && text != "" {
-			builder.WriteString(text)
-		}
-		if content, ok := value["content"].(string); ok && content != "" {
-			builder.WriteString(content)
-		}
-		if reasoning, ok := value["reasoning_content"].(string); ok && reasoning != "" {
-			builder.WriteString(reasoning)
-		}
-	case []any:
-		for _, item := range value {
-			appendStreamText(builder, item)
-		}
-	case string:
-		if value != "" {
-			builder.WriteString(value)
-		}
-	}
 }
 
 func StartRequestAuditCleanupTask() {

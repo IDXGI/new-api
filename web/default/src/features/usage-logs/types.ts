@@ -339,3 +339,56 @@ export interface UserInfo {
   aff_quota?: number
   remark?: string
 }
+
+// ============================================================================
+// Request Audit Types
+// ============================================================================
+
+export interface RequestAuditRelatedRecord {
+  request_id: string
+  route_group?: string
+  route_path?: string
+  method?: string
+  status_code?: number
+  success?: boolean
+  created_at?: number
+  latency_ms?: number
+  retry_count?: number
+  model_name?: string
+  channel_name?: string
+  channel_type?: number
+  is_stream?: boolean
+  is_playground?: boolean
+}
+
+export interface RequestAuditRecord extends RequestAuditRelatedRecord {
+  id?: number
+  user_id?: number
+  username?: string
+  mode?: string
+  relay_format?: string
+  relay_mode?: string
+  upstream_model_name?: string
+  group?: string
+  token_id?: number
+  token_name?: string
+  channel_id?: number
+  task_id?: string
+  mj_id?: string
+  updated_at?: number
+  started_at?: number
+  finished_at?: number
+  first_response_ms?: number
+  aggregated_text?: string
+  payloads_loaded?: boolean
+  related_records?: RequestAuditRelatedRecord[]
+  request?: unknown
+  response?: unknown
+  trace?: unknown
+}
+
+export interface GetRequestAuditResponse {
+  success: boolean
+  message?: string
+  data?: RequestAuditRecord
+}

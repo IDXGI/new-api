@@ -36,6 +36,7 @@ import {
   createChannelColumn,
   createProgressColumn,
   createFailReasonColumn,
+  createRequestAuditColumn,
 } from './column-helpers'
 
 const drawingTypeIconMap: Record<string, LucideIcon> = {
@@ -262,6 +263,16 @@ export function useDrawingLogsColumns(
       cellTitle: t('Click to view full error message'),
     })
   )
+
+  if (isAdmin) {
+    columns.push(
+      createRequestAuditColumn<MidjourneyLog>({
+        headerLabel: t('Audit'),
+        unavailableLabel: t('This drawing task has no task ID available'),
+        getMjId: (log) => log.mj_id,
+      })
+    )
+  }
 
   return columns
 }

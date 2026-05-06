@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SectionPageLayout } from '@/components/layout'
 import type { NavGroup } from '@/components/layout/types'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
+import { RequestAuditDialog } from './components/dialogs/request-audit-dialog'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   UsageLogsProvider,
@@ -54,6 +55,12 @@ function UsageLogsContent() {
     affinityTarget,
     affinityDialogOpen,
     setAffinityDialogOpen,
+    auditDialogOpen,
+    auditRecord,
+    auditLoading,
+    auditPayloadLoading,
+    openAuditByRequestId,
+    closeAuditDialog,
   } = useUsageLogsContext()
   const tabNavGroups = useMemo<NavGroup[]>(
     () => [
@@ -145,6 +152,17 @@ function UsageLogsContent() {
               }
             : null
         }
+      />
+
+      <RequestAuditDialog
+        open={auditDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) closeAuditDialog()
+        }}
+        loading={auditLoading}
+        payloadLoading={auditPayloadLoading}
+        auditRecord={auditRecord}
+        onOpenRequestAudit={openAuditByRequestId}
       />
     </>
   )

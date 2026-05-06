@@ -39,6 +39,7 @@ import type { LogOtherData } from '../../types'
 import { DetailsDialog } from '../dialogs/details-dialog'
 import { ModelBadge } from '../model-badge'
 import { useUsageLogsContext } from '../usage-logs-provider'
+import { createRequestAuditColumn } from './column-helpers'
 
 interface DetailSegment {
   text: string
@@ -776,6 +777,16 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
       maxSize: 200,
     }
   )
+
+  if (isAdmin) {
+    columns.push(
+      createRequestAuditColumn<UsageLog>({
+        headerLabel: t('Audit'),
+        unavailableLabel: t('This log has no request ID available'),
+        getRequestId: (log) => log.request_id,
+      })
+    )
+  }
 
   return columns
 }

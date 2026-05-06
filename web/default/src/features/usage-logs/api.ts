@@ -6,6 +6,7 @@ import type {
   GetLogStatsParams,
   GetLogStatsResponse,
   GetMidjourneyLogsParams,
+  GetRequestAuditResponse,
   GetTaskLogsParams,
   UserInfo,
 } from './types'
@@ -91,3 +92,41 @@ export const getAllTaskLogs = (params: GetTaskLogsParams) =>
 
 export const getUserTaskLogs = (params: GetTaskLogsParams) =>
   fetchLogs('/api/task', params, false)
+
+// ============================================================================
+// Request Audit API
+// ============================================================================
+
+async function getRequestAudit(
+  path: string,
+  includePayloads = true
+): Promise<GetRequestAuditResponse> {
+  const res = await api.get(
+    `${path}?include_payloads=${includePayloads ? 'true' : 'false'}`
+  )
+  return res.data
+}
+
+export const getRequestAuditByRequestId = (
+  requestId: string,
+  includePayloads = true
+) =>
+  getRequestAudit(
+    `/api/request-audit/${encodeURIComponent(requestId)}`,
+    includePayloads
+  )
+
+export const getRequestAuditByTaskId = (
+  taskId: string,
+  includePayloads = true
+) =>
+  getRequestAudit(
+    `/api/request-audit/task/${encodeURIComponent(taskId)}`,
+    includePayloads
+  )
+
+export const getRequestAuditByMjId = (mjId: string, includePayloads = true) =>
+  getRequestAudit(
+    `/api/request-audit/mj/${encodeURIComponent(mjId)}`,
+    includePayloads
+  )

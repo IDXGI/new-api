@@ -22,6 +22,7 @@ import {
   createDurationColumn,
   createChannelColumn,
   createProgressColumn,
+  createRequestAuditColumn,
 } from './column-helpers'
 
 function parseTaskData(data: unknown): unknown[] {
@@ -282,6 +283,16 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
       maxSize: 220,
     }
   )
+
+  if (isAdmin) {
+    columns.push(
+      createRequestAuditColumn<TaskLog>({
+        headerLabel: t('Audit'),
+        unavailableLabel: t('This task has no task ID available'),
+        getTaskId: (log) => log.task_id,
+      })
+    )
+  }
 
   return columns
 }

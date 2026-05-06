@@ -1,9 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Zap } from 'lucide-react'
+import { ClipboardList, Zap } from 'lucide-react'
 import { formatTimestampToDate, formatTokens } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import {
   Tooltip,
   TooltipContent,
@@ -14,6 +15,7 @@ import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
 import { formatDuration } from '../../lib/format'
 import { FailReasonDialog } from '../dialogs/fail-reason-dialog'
+import { useUsageLogsContext } from '../usage-logs-provider'
 
 /**
  * Cache tooltip component for token display
@@ -276,5 +278,64 @@ export function createProgressColumn<T>(config: {
       )
     },
     meta: { label: headerLabel },
+  }
+}
+
+export function createRequestAuditColumn<T>(config: {
+  headerLabel: string
+  unavailableLabel: string
+  getRequestId?: (log: T) => string | undefined
+  getTaskId?: (log: T) => string | undefined
+  getMjId?: (log: T) => string | undefined
+}): ColumnDef<T> {
+  return {
+    id: 'actions',
+    header: config.headerLabel,
+    cell: function RequestAuditCell({ row }) {
+      const { openAuditByRequestId, openAuditByTaskId, openAuditByMjId } =
+        useUsageLogsContext()
+      const log = row.original
+      const requestId = config.getRequestId?.(log)
+      const taskId = config.getTaskId?.(log)
+      const mjId = config.getMjId?.(log)
+      const canOpen = Boolean(requestId || taskId || mjId)
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='sm'
+                  disabled={!canOpen}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    if (requestId) {
+                      openAuditByRequestId(requestId)
+                    } else if (taskId) {
+                      openAuditByTaskId(taskId)
+                    } else if (mjId) {
+                      openAuditByMjId(mjId)
+                    }
+                  }}
+                />
+              }
+            >
+              <ClipboardList data-icon='inline-start' />
+              {config.headerLabel}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className='text-xs'>
+                {canOpen ? config.headerLabel : config.unavailableLabel}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    },
+    enableHiding: false,
+    meta: { label: config.headerLabel },
   }
 }

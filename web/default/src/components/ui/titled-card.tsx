@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -14,6 +32,7 @@ type TitledCardProps = {
   icon?: ReactNode
   action?: ReactNode
   children?: ReactNode
+  disableHoverEffect?: boolean
   className?: string
   headerClassName?: string
   contentClassName?: string
@@ -28,6 +47,7 @@ export function TitledCard({
   icon,
   action,
   children,
+  disableHoverEffect,
   className,
   headerClassName,
   contentClassName,
@@ -36,7 +56,10 @@ export function TitledCard({
   descriptionClassName,
 }: TitledCardProps) {
   return (
-    <Card className={cn('gap-0 overflow-hidden py-0', className)}>
+    <Card
+      data-card-hover={disableHoverEffect ? 'false' : undefined}
+      className={cn('gap-0 overflow-hidden py-0', className)}
+    >
       <CardHeader
         className={cn('border-b p-3 !pb-3 sm:p-5 sm:!pb-5', headerClassName)}
       >

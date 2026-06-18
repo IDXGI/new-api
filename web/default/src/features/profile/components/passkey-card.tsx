@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { useCallback, useMemo, useState } from 'react'
 import { AlertTriangle, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -169,7 +187,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
 
   if (pageLoading || loading) {
     return (
-      <Card className='gap-0 overflow-hidden py-0'>
+      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
         <CardHeader className='p-3 sm:p-5'>
           <Skeleton className='h-6 w-48' />
           <Skeleton className='mt-2 h-4 w-64' />
@@ -190,7 +208,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
 
   return (
     <>
-      <Card className='gap-0 overflow-hidden py-0'>
+      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
         <CardHeader className='p-3 sm:p-5'>
           <CardTitle className='text-lg tracking-tight sm:text-xl'>
             {t('Passkey Login')}
@@ -292,7 +310,7 @@ export function PasskeyCard({ loading: pageLoading }: PasskeyCardProps) {
                         {t('Cancel')}
                       </AlertDialogCancel>
                       <AlertDialogAction
-                        className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                        className='bg-destructive text-destructive-foreground'
                         disabled={removing}
                         onClick={(event) => {
                           event.preventDefault()

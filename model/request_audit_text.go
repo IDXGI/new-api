@@ -160,6 +160,8 @@ var auditTextDirectStringKeys = map[string]struct{}{
 	"arguments":         {},
 	"argument":          {},
 	"input":             {},
+	"delta":             {},
+	"deltas":            {},
 	"message":           {},
 	"content":           {},
 	"contents":          {},
@@ -175,7 +177,7 @@ func ExtractAggregatedTextFromAuditPayload(payload map[string]any) string {
 		if text := extractRepresentativeAuditText(bodyJSON, auditTextModeSnapshot); text != "" {
 			return text
 		}
-		if text := extractRepresentativeAuditText(bodyJSON, auditTextModeFragment); text != "" {
+		if text := strings.TrimSpace(extractRepresentativeAuditText(bodyJSON, auditTextModeFragment)); text != "" {
 			return text
 		}
 	}
@@ -188,7 +190,7 @@ func ExtractAggregatedTextFromAuditPayload(payload map[string]any) string {
 		if text := extractAuditTextFromEventStream(bodyText, auditTextModeSnapshot); text != "" {
 			return text
 		}
-		if text := extractAuditTextFromEventStream(bodyText, auditTextModeFragment); text != "" {
+		if text := strings.TrimSpace(extractAuditTextFromEventStream(bodyText, auditTextModeFragment)); text != "" {
 			return text
 		}
 		return ""
@@ -198,7 +200,7 @@ func ExtractAggregatedTextFromAuditPayload(payload map[string]any) string {
 			if text := extractRepresentativeAuditText(body, auditTextModeSnapshot); text != "" {
 				return text
 			}
-			if text := extractRepresentativeAuditText(body, auditTextModeFragment); text != "" {
+			if text := strings.TrimSpace(extractRepresentativeAuditText(body, auditTextModeFragment)); text != "" {
 				return text
 			}
 		}
@@ -374,8 +376,9 @@ func normalizeAuditTextValue(value string, mode auditTextMode) string {
 	if value == "" {
 		return ""
 	}
+	value = normalizeAuditTextEscapes(value)
 	if mode == auditTextModeFragment {
-		if value == "[DONE]" {
+		if strings.TrimSpace(value) == "[DONE]" {
 			return ""
 		}
 		return value
@@ -385,6 +388,19 @@ func normalizeAuditTextValue(value string, mode auditTextMode) string {
 		return ""
 	}
 	return trimmed
+}
+
+func normalizeAuditTextEscapes(value string) string {
+	if !strings.Contains(value, `\`) {
+		return value
+	}
+	replacer := strings.NewReplacer(
+		`\r\n`, "\n",
+		`\n`, "\n",
+		`\r`, "\n",
+		`\t`, "\t",
+	)
+	return replacer.Replace(value)
 }
 
 func joinAuditTextParts(parts []string, separator string, dedupe bool) string {
@@ -405,5 +421,9 @@ func joinAuditTextParts(parts []string, separator string, dedupe bool) string {
 		}
 		result = append(result, part)
 	}
-	return strings.TrimSpace(strings.Join(result, separator))
+	joined := strings.Join(result, separator)
+	if separator == "" && !dedupe {
+		return joined
+	}
+	return strings.TrimSpace(joined)
 }

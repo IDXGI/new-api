@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -14,12 +32,7 @@ import { formatQuotaWithCurrency } from '@/lib/currency'
 import dayjs from '@/lib/dayjs'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Tooltip,
@@ -27,6 +40,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from '@/components/ui/tooltip'
+import { Dialog } from '@/components/dialog'
 import { Turnstile } from '@/components/turnstile'
 import { getCheckinStatus, performCheckin } from '../api'
 import type { CheckinRecord } from '../types'
@@ -208,20 +222,20 @@ export function CheckinCalendarCard({
 
   if (isLoading) {
     return (
-      <div className='bg-card overflow-hidden rounded-2xl border'>
+      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
         <div className='p-6'>
           <div className='flex items-start justify-between gap-4'>
             <div className='flex items-center gap-3'>
-              <Skeleton className='h-10 w-10 rounded-full' />
+              <Skeleton className='h-10 w-10 rounded-xl' />
               <div className='space-y-2'>
                 <Skeleton className='h-5 w-32' />
                 <Skeleton className='h-3 w-56' />
               </div>
             </div>
-            <Skeleton className='h-9 w-28 rounded-full' />
+            <Skeleton className='h-9 w-28 rounded-md' />
           </div>
         </div>
-      </div>
+      </Card>
     )
   }
 
@@ -235,37 +249,35 @@ export function CheckinCalendarCard({
             setTurnstileWidgetKey((v) => v + 1)
           }
         }}
+        title={t('Security Check')}
+        contentClassName='sm:max-w-md'
+        contentHeight='auto'
+        bodyClassName='space-y-4'
       >
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
-            <DialogTitle>{t('Security Check')}</DialogTitle>
-          </DialogHeader>
-          <div className='text-muted-foreground text-sm'>
-            {t('Please complete the security check to continue.')}
-          </div>
-          <div className='flex justify-center py-4'>
-            <Turnstile
-              key={turnstileWidgetKey}
-              siteKey={turnstileSiteKey}
-              onVerify={(token) => {
-                doCheckin(token)
-              }}
-              onExpire={() => {
-                setTurnstileWidgetKey((v) => v + 1)
-              }}
-            />
-          </div>
-        </DialogContent>
+        <div className='text-muted-foreground text-sm'>
+          {t('Please complete the security check to continue.')}
+        </div>
+        <div className='flex justify-center py-4'>
+          <Turnstile
+            key={turnstileWidgetKey}
+            siteKey={turnstileSiteKey}
+            onVerify={(token) => {
+              doCheckin(token)
+            }}
+            onExpire={() => {
+              setTurnstileWidgetKey((v) => v + 1)
+            }}
+          />
+        </div>
       </Dialog>
 
-      <div className='bg-card overflow-hidden rounded-2xl border'>
+      <Card data-card-hover='false' className='gap-0 overflow-hidden py-0'>
         {/* Header */}
         <div className='border-b p-4 sm:p-6'>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4'>
-            <Button
+            <button
               type='button'
-              variant='ghost'
-              className='flex h-auto min-w-0 flex-1 items-start gap-3 p-0 text-left whitespace-normal hover:bg-transparent'
+              className='flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left whitespace-normal outline-none'
               onClick={() => setCollapsed((v) => !v)}
             >
               <div className='bg-primary/10 text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11'>
@@ -280,7 +292,7 @@ export function CheckinCalendarCard({
                     {t('Daily Check-in')}
                   </h3>
                   {checkedToday && (
-                    <div className='inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 sm:gap-1.5 sm:px-2.5 sm:text-xs dark:text-emerald-400'>
+                    <div className='inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 sm:gap-1.5 sm:px-2.5 sm:text-xs dark:text-emerald-400'>
                       <Sparkles className='h-2.5 w-2.5 sm:h-3 sm:w-3' />
                       {t('Checked in')}
                     </div>
@@ -299,12 +311,12 @@ export function CheckinCalendarCard({
                     : t('Check in daily to receive random quota rewards')}
                 </p>
               </div>
-            </Button>
+            </button>
             <Button
               onClick={() => doCheckin()}
               disabled={checkinLoading || checkedToday}
               size='sm'
-              className='w-full shrink-0 rounded-full sm:w-auto'
+              className='w-full shrink-0 sm:w-auto'
             >
               {checkinLoading
                 ? t('Loading...')
@@ -411,7 +423,6 @@ export function CheckinCalendarCard({
                           'relative flex h-9 w-full flex-col items-center justify-center rounded-lg px-0 text-xs font-medium sm:h-10 sm:text-sm',
                           !dayObj.isCurrentMonth &&
                             'text-muted-foreground/40 cursor-default',
-                          isToday && 'hover:bg-primary/90',
                           !isToday && isCheckedIn && 'font-semibold'
                         )}
                       >
@@ -464,7 +475,7 @@ export function CheckinCalendarCard({
             </div>
           </>
         ) : null}
-      </div>
+      </Card>
     </TooltipProvider>
   )
 }

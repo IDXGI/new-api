@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { type Table } from '@tanstack/react-table'
@@ -7,19 +25,12 @@ import { toast } from 'sonner'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
+import { Dialog } from '@/components/dialog'
 import {
   handleBatchEnableModels,
   handleBatchDisableModels,
@@ -169,17 +180,17 @@ export function DataTableBulkActions<TData>({
       </BulkActionsToolbar>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('Delete Models?')}</DialogTitle>
-            <DialogDescription>
-              {t('Are you sure you want to delete')} {selectedIds.length}{' '}
-              {t('model(s)? This action cannot be undone.')}
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter>
+      <Dialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title={t('Delete Models?')}
+        description={t(
+          'Are you sure you want to delete {{count}} model(s)? This action cannot be undone.',
+          { count: selectedIds.length }
+        )}
+        contentHeight='auto'
+        footer={
+          <>
             <Button
               variant='outline'
               onClick={() => setShowDeleteConfirm(false)}
@@ -189,8 +200,10 @@ export function DataTableBulkActions<TData>({
             <Button variant='destructive' onClick={handleDeleteAll}>
               {t('Delete')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
+          </>
+        }
+      >
+        {' '}
       </Dialog>
     </>
   )

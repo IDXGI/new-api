@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useMemo } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -7,7 +25,6 @@ import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
 import { TASK_ACTIONS, TASK_STATUS } from '../../constants'
 import { taskActionMapper, taskStatusMapper } from '../../lib/mappers'
@@ -77,20 +94,18 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
   const columns: ColumnDef<TaskLog>[] = [
     {
       accessorKey: 'submit_time',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('Submit Time')} />
-      ),
+      header: t('Submit Time'),
       cell: ({ row }) => {
         const log = row.original
         const submitTime = row.getValue('submit_time') as number
 
         return (
-          <div className='flex flex-col gap-0.5'>
-            <span className='font-mono text-xs tabular-nums'>
+          <div className='flex min-w-0 flex-col gap-0.5'>
+            <span className='truncate font-mono text-xs tabular-nums'>
               {formatTimestampToDate(submitTime, 'seconds')}
             </span>
             {log.finish_time ? (
-              <span className='text-muted-foreground/60 font-mono text-[11px] tabular-nums'>
+              <span className='text-muted-foreground/60 truncate font-mono text-[11px] tabular-nums'>
                 {formatTimestampToDate(log.finish_time, 'seconds')}
               </span>
             ) : (
@@ -99,16 +114,15 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
           </div>
         )
       },
-      meta: { label: t('Submit Time') },
+      size: 180,
     },
   ]
 
   if (isAdmin) {
     columns.push(createChannelColumn<TaskLog>({ headerLabel: t('Channel') }), {
       id: 'user',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('User')} />
-      ),
+      header: t('User'),
+      accessorFn: (row) => row.username || row.user_id,
       cell: function UserCell({ row }) {
         const { sensitiveVisible, setSelectedUserId, setUserInfoDialogOpen } =
           useUsageLogsContext()
@@ -125,7 +139,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
               setUserInfoDialogOpen(true)
             }}
           >
-            <Avatar className='ring-border/60 size-6 ring-1'>
+            <Avatar className='ring-border/60 size-6 ring-1 max-sm:hidden'>
               <AvatarFallback
                 className={cn(
                   'text-[11px] font-semibold',
@@ -144,16 +158,13 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
           </button>
         )
       },
-      meta: { label: t('User'), mobileHidden: true },
     })
   }
 
   columns.push(
     {
       accessorKey: 'task_id',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('Task ID')} />
-      ),
+      header: t('Task ID'),
       cell: ({ row }) => {
         const log = row.original
         const taskId = row.getValue('task_id') as string
@@ -166,7 +177,6 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
               label={taskId}
               autoColor={taskId}
               size='sm'
-              showDot={false}
               className='border-border/60 bg-muted/30 max-w-full truncate rounded-md border px-1.5 py-0.5 font-mono'
             />
             <span className='text-muted-foreground/60 truncate text-[11px]'>
@@ -175,7 +185,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
           </div>
         )
       },
-      meta: { label: t('Task ID'), mobileTitle: true },
+      meta: { mobileTitle: true },
     },
     createDurationColumn<TaskLog>({
       submitTimeKey: 'submit_time',
@@ -186,9 +196,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
     }),
     {
       accessorKey: 'status',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('Status')} />
-      ),
+      header: t('Status'),
       cell: ({ row }) => {
         const status = row.getValue('status') as string
         return (
@@ -197,18 +205,15 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
             variant={taskStatusMapper.getVariant(status)}
             size='sm'
             copyable={false}
-            showDot
+            className='-ml-1.5'
           />
         )
       },
-      meta: { label: t('Status') },
     },
     createProgressColumn<TaskLog>({ headerLabel: t('Progress') }),
     {
       accessorKey: 'fail_reason',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t('Details')} />
-      ),
+      header: t('Details'),
       cell: function DetailsCell({ row }) {
         const log = row.original
         const failReason = row.getValue('fail_reason') as string
@@ -278,7 +283,6 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
           </>
         )
       },
-      meta: { label: t('Details') },
       size: 200,
       maxSize: 220,
     }

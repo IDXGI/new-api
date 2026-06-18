@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { AlertTriangle } from 'lucide-react'
@@ -9,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { BadgeCell } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
 import type { RatioType } from '../types'
 import {
@@ -45,8 +64,8 @@ export function useUpstreamRatioSyncColumns(
         cell: ({ row }) => {
           const model = row.original.model
           return (
-            <div className='flex min-w-[180px] items-center gap-2'>
-              <span className='font-medium'>{model}</span>
+            <div className='flex max-w-full min-w-0 items-center gap-2'>
+              <span className='truncate font-medium'>{model}</span>
               {row.original.billingConflict && (
                 <TooltipProvider>
                   <Tooltip>
@@ -76,14 +95,11 @@ export function useUpstreamRatioSyncColumns(
             ratioTypeFilter
           )
           return (
-            <div className='flex min-w-[260px] flex-col gap-2'>
+            <div className='flex max-w-full min-w-0 flex-col gap-2'>
               {fields.map((ratioType) => {
                 const current = row.original.ratioTypes[ratioType]?.current
                 return (
-                  <div
-                    key={ratioType}
-                    className='flex min-w-0 flex-wrap items-center gap-2'
-                  >
+                  <BadgeCell key={ratioType} className='ml-0 flex-wrap gap-2'>
                     <StatusBadge
                       label={getSyncFieldLabel(ratioType, t)}
                       autoColor={ratioType}
@@ -118,7 +134,7 @@ export function useUpstreamRatioSyncColumns(
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                  </div>
+                  </BadgeCell>
                 )
               })}
             </div>
@@ -197,7 +213,7 @@ export function useUpstreamRatioSyncColumns(
           )
 
           return (
-            <div className='flex min-w-[280px] flex-col gap-2'>
+            <div className='flex max-w-full min-w-0 flex-col gap-2'>
               {fields.map((ratioType) => {
                 const diff = row.original.ratioTypes[ratioType]
                 const upstreamVal = diff?.upstreams?.[upstreamName]

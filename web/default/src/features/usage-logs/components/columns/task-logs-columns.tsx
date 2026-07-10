@@ -91,7 +91,10 @@ function AudioPreviewCell({ log }: { log: TaskLog }) {
   )
 }
 
-export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
+export function useTaskLogsColumns(
+  isAdmin: boolean,
+  canViewRequestAudit: boolean
+): ColumnDef<TaskLog>[] {
   const { t } = useTranslation()
   const columns: ColumnDef<TaskLog>[] = [
     {
@@ -290,7 +293,7 @@ export function useTaskLogsColumns(isAdmin: boolean): ColumnDef<TaskLog>[] {
     }
   )
 
-  if (isAdmin) {
+  if (canViewRequestAudit) {
     columns.push(
       createRequestAuditColumn<TaskLog>({
         headerLabel: t('Audit'),

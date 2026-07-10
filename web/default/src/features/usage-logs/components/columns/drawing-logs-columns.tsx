@@ -83,7 +83,8 @@ function getDrawingTypeIcon(action: string): LucideIcon {
 }
 
 export function useDrawingLogsColumns(
-  isAdmin: boolean
+  isAdmin: boolean,
+  canViewRequestAudit: boolean
 ): ColumnDef<MidjourneyLog>[] {
   const { t } = useTranslation()
   const columns: ColumnDef<MidjourneyLog>[] = [
@@ -265,7 +266,7 @@ export function useDrawingLogsColumns(
     })
   )
 
-  if (isAdmin) {
+  if (canViewRequestAudit) {
     columns.push(
       createRequestAuditColumn<MidjourneyLog>({
         headerLabel: t('Audit'),

@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { CircleAlert, GitBranch, Sparkles, KeyRound } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -102,6 +102,47 @@ function splitQuotaDisplay(value: string): { prefix: string; amount: string } {
   const match = value.match(/^([^0-9+\-.,\s]+)(.+)$/)
   if (!match) return { prefix: '', amount: value }
   return { prefix: match[1], amount: match[2] }
+}
+
+function renderDetailsPreview(
+  primary: DetailSegment | undefined,
+  additionalCount: number,
+  fallbackContent: string
+) {
+  if (primary) {
+    let textClassName = 'text-foreground'
+    if (primary.muted) {
+      textClassName = 'text-muted-foreground/60'
+    } else if (primary.danger) {
+      textClassName = 'text-red-600 dark:text-red-400'
+    }
+
+    return (
+      <span
+        className={cn(
+          'truncate leading-snug group-hover:underline',
+          textClassName
+        )}
+      >
+        {primary.text}
+        {additionalCount > 0 && (
+          <span className='text-muted-foreground/40 ml-0.5'>
+            +{additionalCount}
+          </span>
+        )}
+      </span>
+    )
+  }
+
+  if (fallbackContent) {
+    return (
+      <span className='text-muted-foreground truncate group-hover:underline'>
+        {fallbackContent}
+      </span>
+    )
+  }
+
+  return <span className='text-muted-foreground/40'>—</span>
 }
 
 function buildDetailSegments(
@@ -224,10 +265,11 @@ function buildTypeDetailSegments(
       })
     }
   } else {
-    const isPerCall = isPerCallBilling(other.model_price)
-    if (isPerCall) {
+    const modelPrice = other.model_price
+    const isPerCall = isPerCallBilling(modelPrice)
+    if (isPerCall && modelPrice != null) {
       segments.push({
-        text: `${t('Per-call')} · ${formatBillingCurrencyFromUSD(other.model_price!, priceOpts)}`,
+        text: `${t('Per-call')} · ${formatBillingCurrencyFromUSD(modelPrice, priceOpts)}`,
       })
     } else if (other.model_ratio != null) {
       const inputPriceUSD = other.model_ratio * 2.0
@@ -292,7 +334,10 @@ function buildTypeDetailSegments(
   return segments
 }
 
-export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
+export function useCommonLogsColumns(
+  isAdmin: boolean,
+  canViewRequestAudit: boolean
+): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
   const columns: ColumnDef<UsageLog>[] = [
     {
@@ -703,7 +748,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     <Tooltip>
                       <TooltipTrigger
                         render={<CircleAlert className='size-3 text-red-500' />}
-                      ></TooltipTrigger>
+                      />
                       <TooltipContent>
                         <div className='space-y-0.5 text-xs'>
                           <p>
@@ -827,6 +872,59 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
       },
     },
 
+    ...(canViewRequestAudit
+      ? [
+          {
+            accessorKey: 'aggregated_text',
+            header: t('Answer Content'),
+            cell: ({ row }) => {
+              const log = row.original
+              const rawText = row.getValue('aggregated_text')
+              const text = typeof rawText === 'string' ? rawText.trim() : ''
+
+              if (!text || (log.type !== 2 && log.type !== 5)) {
+                return (
+                  <span className='text-muted-foreground/40 text-xs'>—</span>
+                )
+              }
+
+              return (
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type='button'
+                        className='group max-w-[260px] text-left text-xs'
+                        aria-label={t('Answer Content')}
+                        onClick={(event) => event.stopPropagation()}
+                      />
+                    }
+                  >
+                    <span className='text-muted-foreground group-hover:text-foreground line-clamp-2 leading-relaxed break-words transition-colors'>
+                      {text}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align='start'
+                    className='w-[min(420px,calc(100vw-2rem))] p-0'
+                  >
+                    <div className='border-border/60 border-b px-3 py-2 text-xs font-medium'>
+                      {t('Answer Content')}
+                    </div>
+                    <div className='max-h-72 overflow-auto p-3 text-xs leading-relaxed break-words whitespace-pre-wrap'>
+                      {text}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )
+            },
+            size: 260,
+            maxSize: 300,
+            meta: { label: t('Answer Content') },
+          } satisfies ColumnDef<UsageLog>,
+        ]
+      : []),
+
     {
       accessorKey: 'content',
       header: t('Details'),
@@ -847,30 +945,10 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               onClick={() => setDialogOpen(true)}
               title={t('Click to view full details')}
             >
-              {primary ? (
-                <span
-                  className={cn(
-                    'truncate leading-snug group-hover:underline',
-                    primary.muted
-                      ? 'text-muted-foreground/60'
-                      : primary.danger
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-foreground'
-                  )}
-                >
-                  {primary.text}
-                  {hasMore && (
-                    <span className='text-muted-foreground/40 ml-0.5'>
-                      +{segments.length - 1}
-                    </span>
-                  )}
-                </span>
-              ) : log.content ? (
-                <span className='text-muted-foreground truncate group-hover:underline'>
-                  {log.content}
-                </span>
-              ) : (
-                <span className='text-muted-foreground/40'>—</span>
+              {renderDetailsPreview(
+                primary,
+                hasMore ? segments.length - 1 : 0,
+                log.content
               )}
             </button>
             <DetailsDialog
@@ -887,7 +965,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
     }
   )
 
-  if (isAdmin) {
+  if (canViewRequestAudit) {
     columns.push(
       createRequestAuditColumn<UsageLog>({
         headerLabel: t('Audit'),

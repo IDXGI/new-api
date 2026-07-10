@@ -184,6 +184,7 @@ function CommonLogsCard<TData>({
 
   const modelCell = cells.get('model_name')
   const quotaCell = cells.get('quota')
+  const auditCell = cells.get('audit')
   const rowData = cells.get('created_at')?.row.original as
     | Record<string, unknown>
     | undefined
@@ -192,10 +193,13 @@ function CommonLogsCard<TData>({
     <div className='space-y-2.5'>
       <div className='flex min-w-0 items-center justify-between gap-3'>
         <CompactCell cell={modelCell} className='flex-1' />
-        <CompactCell
-          cell={quotaCell}
-          className='shrink-0 text-right [&_.flex-col]:items-end'
-        />
+        <div className='flex shrink-0 items-center gap-1'>
+          <CompactCell
+            cell={quotaCell}
+            className='text-right [&_.flex-col]:items-end'
+          />
+          {auditCell && <CompactCell cell={auditCell} />}
+        </div>
       </div>
 
       <div className='grid grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-1.5'>
@@ -234,6 +238,11 @@ function CommonLogsCard<TData>({
           cell={cells.get('content')}
           className='col-span-2 bg-transparent px-0 py-0'
         />
+        <SummaryField
+          label={t('Answer Content')}
+          cell={cells.get('aggregated_text')}
+          className='col-span-2 bg-transparent px-0 py-0'
+        />
       </div>
     </div>
   )
@@ -248,13 +257,17 @@ function TaskLogsCard<TData>({
 
   const taskIdCell = cells.get('task_id')
   const statusCell = cells.get('status')
+  const auditCell = cells.get('audit')
   const submitTimeCell = cells.get('submit_time')
 
   return (
     <div className='space-y-2.5'>
       <div className='flex min-w-0 items-start justify-between gap-3'>
         <CompactCell cell={taskIdCell} className='flex-1' />
-        <CompactCell cell={statusCell} className='shrink-0 text-right' />
+        <div className='flex shrink-0 items-center gap-1'>
+          <CompactCell cell={statusCell} className='text-right' />
+          {auditCell && <CompactCell cell={auditCell} />}
+        </div>
       </div>
 
       <div className='grid grid-cols-2 gap-1.5'>
@@ -279,13 +292,17 @@ function DrawingLogsCard<TData>({
 
   const actionCell = cells.get('action')
   const codeCell = cells.get('code')
+  const auditCell = cells.get('audit')
   const submitTimeCell = cells.get('submit_time')
 
   return (
     <div className='space-y-2.5'>
       <div className='flex min-w-0 items-start justify-between gap-3'>
         <CompactCell cell={actionCell} className='flex-1' />
-        <CompactCell cell={codeCell} className='shrink-0 text-right' />
+        <div className='flex shrink-0 items-center gap-1'>
+          <CompactCell cell={codeCell} className='text-right' />
+          {auditCell && <CompactCell cell={auditCell} />}
+        </div>
       </div>
 
       <div className='grid grid-cols-2 gap-1.5'>

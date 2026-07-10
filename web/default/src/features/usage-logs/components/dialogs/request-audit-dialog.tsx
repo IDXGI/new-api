@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from 'react'
 import {
   Check,
   Clipboard,
@@ -8,10 +7,10 @@ import {
   Route,
   Timer,
 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { formatTimestampToDate } from '@/lib/format'
-import { cn } from '@/lib/utils'
-import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,11 +29,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { StatusBadge } from '@/components/status-badge'
-import type {
-  RequestAuditRecord,
-  RequestAuditRelatedRecord,
-} from '../../types'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { formatTimestampToDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
+
+import type { RequestAuditRecord, RequestAuditRelatedRecord } from '../../types'
 
 const RELATED_FILTER_ALL = 'all'
 
@@ -46,6 +45,25 @@ function getRelatedCategory(routeGroup?: string) {
   if (routeGroup.includes('notify')) return 'notify'
   if (routeGroup.includes('seed')) return 'seed'
   return 'other'
+}
+
+function getRelatedCategoryLabel(category: string, t: TFunction) {
+  switch (category) {
+    case RELATED_FILTER_ALL:
+      return t('All')
+    case 'submit':
+      return t('Submit')
+    case 'fetch':
+      return t('Fetch')
+    case 'content':
+      return t('Content')
+    case 'notify':
+      return t('Callback')
+    case 'seed':
+      return t('Seed')
+    default:
+      return t('Other')
+  }
 }
 
 function formatDurationMs(value?: number, emptyAsDash = false) {
@@ -184,11 +202,7 @@ function JsonBlock({ value }: { value: unknown }) {
   )
 }
 
-function PayloadPlaceholder({
-  loading,
-}: {
-  loading: boolean
-}) {
+function PayloadPlaceholder({ loading }: { loading: boolean }) {
   const { t } = useTranslation()
   return (
     <Empty className='min-h-56 border'>
@@ -197,12 +211,50 @@ function PayloadPlaceholder({
           {loading ? <Spinner /> : <FileJson />}
         </EmptyMedia>
         <EmptyTitle>
-          {loading ? t('Loading audit payloads') : t('Audit payloads not ready')}
+          {loading
+            ? t('Loading audit payloads')
+            : t('Audit payloads not ready')}
         </EmptyTitle>
         <EmptyDescription>
           {loading
-            ? t('Request, response and trace details are loading in the background')
+            ? t(
+                'Request, response and trace details are loading in the background'
+              )
             : t('Audit details are not available yet. Please try again later.')}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
+function AuditEmptyState({ loading }: { loading: boolean }) {
+  const { t } = useTranslation()
+
+  if (loading) {
+    return (
+      <Empty className='min-h-72 border'>
+        <EmptyHeader>
+          <EmptyMedia variant='icon'>
+            <Spinner />
+          </EmptyMedia>
+          <EmptyTitle>{t('Loading audit overview')}</EmptyTitle>
+          <EmptyDescription>
+            {t('The dialog is open and details will appear shortly.')}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
+
+  return (
+    <Empty className='min-h-72 border'>
+      <EmptyHeader>
+        <EmptyMedia variant='icon'>
+          <Clipboard />
+        </EmptyMedia>
+        <EmptyTitle>{t('No audit details')}</EmptyTitle>
+        <EmptyDescription>
+          {t('No request audit record is available for this entry.')}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -272,9 +324,13 @@ export function RequestAuditDialog({
 
   const payloadsLoaded = auditRecord?.payloads_loaded !== false
   const aggregatedText = getAuditAggregatedText(auditRecord)
-  const relatedRecords = Array.isArray(auditRecord?.related_records)
-    ? auditRecord.related_records
-    : []
+  const relatedRecords = useMemo(
+    () =>
+      Array.isArray(auditRecord?.related_records)
+        ? auditRecord.related_records
+        : [],
+    [auditRecord?.related_records]
+  )
 
   const relatedFilters = useMemo(() => {
     const counters = new Map<string, number>([
@@ -284,23 +340,10 @@ export function RequestAuditDialog({
       const category = getRelatedCategory(record.route_group)
       counters.set(category, (counters.get(category) || 0) + 1)
     })
-    return Array.from(counters.entries()).map(([key, count]) => ({
+    return [...counters.entries()].map(([key, count]) => ({
       key,
       count,
-      label:
-        key === RELATED_FILTER_ALL
-          ? t('All')
-          : key === 'submit'
-            ? t('Submit')
-            : key === 'fetch'
-              ? t('Fetch')
-              : key === 'content'
-                ? t('Content')
-                : key === 'notify'
-                  ? t('Callback')
-                  : key === 'seed'
-                    ? t('Seed')
-                    : t('Other'),
+      label: getRelatedCategoryLabel(key, t),
     }))
   }, [relatedRecords, t])
 
@@ -342,31 +385,7 @@ export function RequestAuditDialog({
         </DialogHeader>
 
         <ScrollArea className='max-h-[calc(100dvh-8rem)] pr-3'>
-          {loading && !auditRecord ? (
-            <Empty className='min-h-72 border'>
-              <EmptyHeader>
-                <EmptyMedia variant='icon'>
-                  <Spinner />
-                </EmptyMedia>
-                <EmptyTitle>{t('Loading audit overview')}</EmptyTitle>
-                <EmptyDescription>
-                  {t('The dialog is open and details will appear shortly.')}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : !auditRecord ? (
-            <Empty className='min-h-72 border'>
-              <EmptyHeader>
-                <EmptyMedia variant='icon'>
-                  <Clipboard />
-                </EmptyMedia>
-                <EmptyTitle>{t('No audit details')}</EmptyTitle>
-                <EmptyDescription>
-                  {t('No request audit record is available for this entry.')}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
+          {auditRecord ? (
             <div className='flex min-w-0 flex-col gap-4 pb-1'>
               <AuditSection
                 title={t('Audit Overview')}
@@ -375,10 +394,10 @@ export function RequestAuditDialog({
                   <div className='flex flex-wrap justify-end gap-1.5'>
                     {(
                       [
-                      [t('Request ID'), auditRecord.request_id],
-                      [t('Request'), auditRecord.request],
-                      [t('Response'), auditRecord.response],
-                      [t('Trace'), auditRecord.trace],
+                        [t('Request ID'), auditRecord.request_id],
+                        [t('Request'), auditRecord.request],
+                        [t('Response'), auditRecord.response],
+                        [t('Trace'), auditRecord.trace],
                       ] as Array<[string, unknown]>
                     ).map(([label, value]) => (
                       <Button
@@ -436,7 +455,9 @@ export function RequestAuditDialog({
                       />
                     )}
                     <StatusBadge
-                      label={auditRecord.is_stream ? t('Stream') : t('Non-stream')}
+                      label={
+                        auditRecord.is_stream ? t('Stream') : t('Non-stream')
+                      }
                       variant={auditRecord.is_stream ? 'green' : 'grey'}
                       size='sm'
                       copyable={false}
@@ -495,13 +516,15 @@ export function RequestAuditDialog({
 
               {aggregatedText && (
                 <AuditSection
-                  title={t('Response Text')}
+                  title={t('Answer Content')}
                   action={
                     <Button
                       type='button'
                       variant='outline'
                       size='xs'
-                      onClick={() => handleCopy(t('Response Text'), aggregatedText)}
+                      onClick={() =>
+                        handleCopy(t('Answer Content'), aggregatedText)
+                      }
                     >
                       <Copy data-icon='inline-start' />
                       {t('Copy')}
@@ -559,7 +582,10 @@ export function RequestAuditDialog({
                 >
                   <div className='flex min-w-0 flex-col gap-2'>
                     <DetailRow label={t('Mode')} value={auditRecord.mode} />
-                    <DetailRow label={t('Model')} value={auditRecord.model_name} />
+                    <DetailRow
+                      label={t('Model')}
+                      value={auditRecord.model_name}
+                    />
                     <DetailRow
                       label={t('Upstream Model')}
                       value={auditRecord.upstream_model_name}
@@ -581,8 +607,14 @@ export function RequestAuditDialog({
                           : '-')
                       }
                     />
-                    <DetailRow label={t('Token')} value={auditRecord.token_name} />
-                    <DetailRow label={t('Task ID')} value={auditRecord.task_id} />
+                    <DetailRow
+                      label={t('Token')}
+                      value={auditRecord.token_name}
+                    />
+                    <DetailRow
+                      label={t('Task ID')}
+                      value={auditRecord.task_id}
+                    />
                     <DetailRow label='MjID' value={auditRecord.mj_id} />
                   </div>
                 </AuditSection>
@@ -591,7 +623,9 @@ export function RequestAuditDialog({
               {relatedRecords.length > 0 && (
                 <AuditSection
                   title={t('Related Requests')}
-                  description={t('Other audit records from the same task or flow')}
+                  description={t(
+                    'Other audit records from the same task or flow'
+                  )}
                 >
                   <div className='flex flex-wrap gap-1.5'>
                     {relatedFilters.map((filter) => (
@@ -626,7 +660,9 @@ export function RequestAuditDialog({
                 description={
                   payloadsLoaded
                     ? t('Structured request, response and relay trace payloads')
-                    : t('Large request and response payloads load after the overview')
+                    : t(
+                        'Large request and response payloads load after the overview'
+                      )
                 }
                 action={
                   payloadLoading ? (
@@ -640,7 +676,10 @@ export function RequestAuditDialog({
                   ) : null
                 }
               >
-                <Tabs value={activeDetailTab} onValueChange={setActiveDetailTab}>
+                <Tabs
+                  value={activeDetailTab}
+                  onValueChange={setActiveDetailTab}
+                >
                   <TabsList className='h-auto max-w-full flex-wrap justify-start'>
                     <TabsTrigger value='summary'>
                       <Timer data-icon='inline-start' />
@@ -710,6 +749,8 @@ export function RequestAuditDialog({
                 </Tabs>
               </AuditSection>
             </div>
+          ) : (
+            <AuditEmptyState loading={loading} />
           )}
         </ScrollArea>
       </DialogContent>

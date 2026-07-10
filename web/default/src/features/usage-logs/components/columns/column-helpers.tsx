@@ -280,7 +280,12 @@ export function createRequestAuditColumn<T>(config: {
   getMjId?: (log: T) => string | undefined
 }): ColumnDef<T> {
   return {
-    id: 'actions',
+    id: 'audit',
+    accessorFn: (log) =>
+      config.getRequestId?.(log) ||
+      config.getTaskId?.(log) ||
+      config.getMjId?.(log) ||
+      '',
     header: config.headerLabel,
     cell: function RequestAuditCell({ row }) {
       const { openAuditByRequestId, openAuditByTaskId, openAuditByMjId } =
@@ -326,7 +331,8 @@ export function createRequestAuditColumn<T>(config: {
         </TooltipProvider>
       )
     },
-    enableHiding: false,
+    enableHiding: true,
+    size: 110,
     meta: { label: config.headerLabel },
   }
 }

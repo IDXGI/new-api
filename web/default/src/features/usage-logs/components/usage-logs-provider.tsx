@@ -28,6 +28,9 @@ import {
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useIsAdmin } from '@/hooks/use-admin'
+import { useStatus } from '@/hooks/use-status'
+
 import {
   getRequestAuditByMjId,
   getRequestAuditByRequestId,
@@ -46,6 +49,7 @@ interface UsageLogsContextValue {
   setAffinityDialogOpen: (open: boolean) => void
   sensitiveVisible: boolean
   setSensitiveVisible: (visible: boolean) => void
+  canViewRequestAudit: boolean
   auditDialogOpen: boolean
   auditRecord: RequestAuditRecord | null
   auditLoading: boolean
@@ -62,6 +66,11 @@ const UsageLogsContext = createContext<UsageLogsContextValue | undefined>(
 
 export function UsageLogsProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
+  const isAdmin = useIsAdmin()
+  const { status } = useStatus()
+  const canViewRequestAudit =
+    isAdmin &&
+    Boolean(status?.self_use_mode_enabled || status?.demo_site_enabled)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false)
   const [affinityTarget, setAffinityTarget] =
@@ -114,6 +123,8 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
       ) => ReturnType<typeof getRequestAuditByRequestId>,
       emptyMessage: string
     ) => {
+      if (!canViewRequestAudit) return
+
       if (!targetId) {
         toast.error(emptyMessage)
         return
@@ -147,7 +158,7 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         toast.error(t('Failed to load request audit'))
       }
     },
-    [loadAuditPayloadByRequestId, t]
+    [canViewRequestAudit, loadAuditPayloadByRequestId, t]
   )
 
   const openAuditByRequestId = useCallback(
@@ -204,6 +215,7 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         setAffinityDialogOpen,
         sensitiveVisible,
         setSensitiveVisible,
+        canViewRequestAudit,
         auditDialogOpen,
         auditRecord,
         auditLoading,

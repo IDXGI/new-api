@@ -62,6 +62,62 @@ func countSystemTasks(t *testing.T, taskType string) int64 {
 	return count
 }
 
+func TestRunLogCleanupTaskRemovesOrphanedRequestAudits(t *testing.T) {
+	truncate(t)
+
+	const targetTimestamp int64 = 100
+	require.NoError(t, model.LOG_DB.Create(&model.RequestAudit{
+		CreatedAt:       10,
+		RequestID:       "orphaned-old-request",
+		ResponsePayload: "large orphaned payload",
+	}).Error)
+	require.NoError(t, model.LOG_DB.Create(&model.RequestAudit{
+		CreatedAt:       200,
+		RequestID:       "retained-new-request",
+		ResponsePayload: "new payload",
+	}).Error)
+
+	task, err := model.CreateSystemTask(
+		model.SystemTaskTypeLogCleanup,
+		LogCleanupPayload{TargetTimestamp: targetTimestamp, BatchSize: 1},
+		LogCleanupState{},
+	)
+	require.NoError(t, err)
+
+	const runnerID = "log-cleanup-test-runner"
+	claimedTask, claimed, err := model.ClaimSystemTask(
+		task.ID,
+		model.SystemTaskTypeLogCleanup,
+		runnerID,
+		common.GetTimestamp()+60,
+	)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	runLogCleanupTask(context.Background(), claimedTask, runnerID)
+
+	finishedTask, err := model.GetSystemTaskByTaskID(task.TaskID)
+	require.NoError(t, err)
+	require.NotNil(t, finishedTask)
+	assert.Equal(t, model.SystemTaskStatusSucceeded, finishedTask.Status)
+
+	var result LogCleanupResult
+	require.NoError(t, common.UnmarshalJsonStr(finishedTask.Result, &result))
+	assert.Equal(t, int64(1), result.DeletedCount)
+
+	var oldAuditCount int64
+	require.NoError(t, model.LOG_DB.Model(&model.RequestAudit{}).
+		Where("request_id = ?", "orphaned-old-request").
+		Count(&oldAuditCount).Error)
+	assert.Zero(t, oldAuditCount)
+
+	var newAuditCount int64
+	require.NoError(t, model.LOG_DB.Model(&model.RequestAudit{}).
+		Where("request_id = ?", "retained-new-request").
+		Count(&newAuditCount).Error)
+	assert.Equal(t, int64(1), newAuditCount)
+}
+
 func TestSystemTaskSchedulerCreatesWhenDueAndDedups(t *testing.T) {
 	truncate(t)
 

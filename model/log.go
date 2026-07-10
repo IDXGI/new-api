@@ -746,6 +746,21 @@ func CountOldLog(ctx context.Context, targetTimestamp int64) (int64, error) {
 	return total, nil
 }
 
+// CountOldLogCleanupRows counts both usage logs and their independently stored
+// request audit records. Manual log cleanup must use this combined count so it
+// also works when the usage logs were already removed by an older version.
+func CountOldLogCleanupRows(ctx context.Context, targetTimestamp int64) (int64, error) {
+	logCount, err := CountOldLog(ctx, targetTimestamp)
+	if err != nil {
+		return 0, err
+	}
+	auditCount, err := CountOldRequestAudits(ctx, targetTimestamp)
+	if err != nil {
+		return 0, err
+	}
+	return logCount + auditCount, nil
+}
+
 func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 100
@@ -782,6 +797,21 @@ func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (i
 	return result.RowsAffected, nil
 }
 
+// DeleteOldLogCleanupBatch removes one batch from both tables. Request audits
+// are deleted first because their large payload columns are the primary source
+// of disk usage and do not have a database foreign key to the logs table.
+func DeleteOldLogCleanupBatch(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {
+	auditRows, err := DeleteOldRequestAuditBatch(ctx, targetTimestamp, limit)
+	if err != nil {
+		return 0, err
+	}
+	logRows, err := DeleteOldLogBatch(ctx, targetTimestamp, limit)
+	if err != nil {
+		return auditRows, err
+	}
+	return auditRows + logRows, nil
+}
+
 func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {
 	if limit <= 0 {
 		limit = 100
@@ -794,14 +824,14 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 			return total, ctx.Err()
 		}
 
-		rowsAffected, err := DeleteOldLogBatch(ctx, targetTimestamp, limit)
+		rowsAffected, err := DeleteOldLogCleanupBatch(ctx, targetTimestamp, limit)
 		if nil != err {
 			return total, err
 		}
 
 		total += rowsAffected
 
-		if rowsAffected < int64(limit) {
+		if rowsAffected == 0 {
 			break
 		}
 	}

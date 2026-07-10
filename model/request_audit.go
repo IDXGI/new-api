@@ -132,30 +132,57 @@ func ListRequestAuditsByMJID(mjID string, limit int) ([]*RequestAudit, error) {
 	return audits, nil
 }
 
+func CountOldRequestAudits(ctx context.Context, targetTimestamp int64) (int64, error) {
+	var total int64
+	if err := LOG_DB.WithContext(ctx).
+		Model(&RequestAudit{}).
+		Where("created_at < ?", targetTimestamp).
+		Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func DeleteOldRequestAuditBatch(ctx context.Context, targetTimestamp int64, batchSize int) (int64, error) {
+	if batchSize <= 0 {
+		batchSize = 1000
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	var ids []int64
+	if err := LOG_DB.WithContext(ctx).
+		Model(&RequestAudit{}).
+		Where("created_at < ?", targetTimestamp).
+		Order("id asc").
+		Limit(batchSize).
+		Pluck("id", &ids).Error; err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+
+	result := LOG_DB.WithContext(ctx).Delete(&RequestAudit{}, ids)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 func DeleteOldRequestAudits(ctx context.Context, targetTimestamp int64, batchSize int) (int64, error) {
 	var total int64
 	if batchSize <= 0 {
 		batchSize = 1000
 	}
 	for {
-		var ids []int64
-		if err := LOG_DB.WithContext(ctx).
-			Model(&RequestAudit{}).
-			Where("created_at < ?", targetTimestamp).
-			Order("id asc").
-			Limit(batchSize).
-			Pluck("id", &ids).Error; err != nil {
+		rowsAffected, err := DeleteOldRequestAuditBatch(ctx, targetTimestamp, batchSize)
+		if err != nil {
 			return total, err
 		}
-		if len(ids) == 0 {
-			return total, nil
-		}
-		result := LOG_DB.WithContext(ctx).Delete(&RequestAudit{}, ids)
-		if result.Error != nil {
-			return total, result.Error
-		}
-		total += result.RowsAffected
-		if len(ids) < batchSize {
+		total += rowsAffected
+		if rowsAffected == 0 {
 			return total, nil
 		}
 	}

@@ -16,37 +16,37 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { type ReactNode } from 'react'
 import i18next from 'i18next'
 import { CreditCard, Landmark } from 'lucide-react'
+import { type ReactNode } from 'react'
 import { SiAlipay, SiWechat, SiStripe } from 'react-icons/si'
+
 import { ReactIconByName } from '@/components/react-icon-by-name'
+
 import { PAYMENT_TYPES, PAYMENT_ICON_COLORS } from '../constants'
 
 // ============================================================================
 // UI Helper Functions
 // ============================================================================
 
-const HAS_LOCATION =
-  typeof globalThis !== 'undefined' && 'location' in globalThis
-
 /**
- * Resolves a backend-provided image URL to http(s) only. Rejects javascript:,
- * data:, blob:, file:, and URLs with userinfo, which are unsafe in <img src/>.
+ * Resolves a backend-provided image URL to https only. Rejects http:,
+ * data:, blob:, file:, relative paths, and URLs with userinfo, which are unsafe
+ * or ambiguous in <img src/>.
  */
 function normalizeHttpIconUrl(raw: string | undefined | null): string | null {
   if (!raw) return null
   const s = raw.trim()
   if (!s) return null
+  if (!/^https:\/\//i.test(s)) return null
+
   let url: URL
   try {
-    url = HAS_LOCATION
-      ? new URL(s, (globalThis as { location: Location }).location.href)
-      : new URL(s)
+    url = new URL(s)
   } catch {
     return null
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+  if (url.protocol !== 'https:') {
     return null
   }
   if (url.username || url.password) {

@@ -16,14 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
-import { type ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { formatQuota } from '@/lib/format'
+
 import { BadgeCell } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
+import { formatQuota } from '@/lib/format'
+
 import { formatDuration, formatResetPeriod } from '../lib'
 import type { PlanRecord } from '../types'
 import { DataTableRowActions } from './data-table-row-actions'
@@ -116,14 +118,12 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
               label={t('Enable')}
               variant='success'
               copyable={false}
-              className='-ml-1.5'
             />
           ) : (
             <StatusBadge
               label={t('Disable')}
               variant='neutral'
               copyable={false}
-              className='-ml-1.5'
             />
           ),
         size: 80,
@@ -160,7 +160,7 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
       },
       {
         id: 'total_amount',
-        header: t('Received amount'),
+        header: t('Plan Quota'),
         meta: { mobileHidden: true },
         cell: ({ row }) => {
           const total = Number(row.original.plan.total_amount || 0)
@@ -196,7 +196,6 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
         header: () => t('Actions'),
         cell: ({ row }) => <DataTableRowActions row={row} />,
         meta: { pinned: 'right' as const },
-        size: 80,
       },
     ],
     [t]

@@ -27,6 +27,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
 import {
   getRequestAuditByMjId,
   getRequestAuditByRequestId,
@@ -83,9 +84,10 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         const result = await getRequestAuditByRequestId(requestId)
         if (requestSeq !== auditRequestSeqRef.current) return
         if (result.success && result.data) {
+          const loadedAudit = result.data
           setAuditRecord((prev) => {
-            if (!prev || prev.request_id !== requestId) return result.data!
-            return { ...prev, ...result.data }
+            if (!prev || prev.request_id !== requestId) return loadedAudit
+            return { ...prev, ...loadedAudit }
           })
         } else {
           toast.error(result.message || t('Failed to load request audit'))

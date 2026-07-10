@@ -16,11 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useCallback } from 'react'
 import { Check, Copy, Loader2 } from 'lucide-react'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { copyToClipboard } from '@/lib/copy-to-clipboard'
+
+import { BadgeCell } from '@/components/data-table'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -32,9 +34,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { BadgeCell } from '@/components/data-table'
-import { StatusBadge } from '@/components/status-badge'
-import { type ApiKey } from '../types'
+import { copyToClipboard } from '@/lib/copy-to-clipboard'
+
+import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
 export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
@@ -52,6 +54,19 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   const resolvedFullKey = resolvedKeys[apiKey.id]
   const isCopied = copiedKeyId === apiKey.id
   const maskedKey = `sk-${apiKey.key}`
+  let copyIcon = <Copy className='size-3.5' />
+  if (isLoading) {
+    copyIcon = <Loader2 className='size-3.5 animate-spin' />
+  } else if (isCopied) {
+    copyIcon = <Check className='size-3.5 text-green-600' />
+  }
+
+  let copyTooltip = t('Copy API key')
+  if (isLoading) {
+    copyTooltip = t('Loading...')
+  } else if (isCopied) {
+    copyTooltip = t('Copied!')
+  }
 
   const handlePopoverOpen = useCallback(
     (open: boolean) => {
@@ -133,21 +148,9 @@ export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
             />
           }
         >
-          {isLoading ? (
-            <Loader2 className='size-3.5 animate-spin' />
-          ) : isCopied ? (
-            <Check className='size-3.5 text-green-600' />
-          ) : (
-            <Copy className='size-3.5' />
-          )}
+          {copyIcon}
         </TooltipTrigger>
-        <TooltipContent>
-          {isLoading
-            ? t('Loading...')
-            : isCopied
-              ? t('Copied!')
-              : t('Copy API key')}
-        </TooltipContent>
+        <TooltipContent>{copyTooltip}</TooltipContent>
       </Tooltip>
     </div>
   )
@@ -158,12 +161,7 @@ export function ModelLimitsCell({ apiKey }: { apiKey: ApiKey }) {
 
   if (!apiKey.model_limits_enabled || !apiKey.model_limits) {
     return (
-      <StatusBadge
-        label={t('Unlimited')}
-        variant='neutral'
-        copyable={false}
-        className='-ml-1.5'
-      />
+      <StatusBadge label={t('Unlimited')} variant='neutral' copyable={false} />
     )
   }
 
@@ -201,7 +199,6 @@ export function IpRestrictionsCell({ apiKey }: { apiKey: ApiKey }) {
         label={t('No restriction')}
         variant='neutral'
         copyable={false}
-        className='-ml-1.5'
       />
     )
   }

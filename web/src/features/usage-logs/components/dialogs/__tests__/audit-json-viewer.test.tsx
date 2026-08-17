@@ -33,11 +33,21 @@ describe('AuditJsonViewer', () => {
     const viewer = screen.getByRole('region', { name: 'Client Request' })
     expect(viewer).toHaveAttribute('data-highlight-enabled', 'true')
     await waitFor(() => {
+      const editor = viewer.querySelector<HTMLElement>('.cm-editor')
+      const gutters = viewer.querySelector<HTMLElement>('.cm-gutters')
+      const scroller = viewer.querySelector<HTMLElement>('.cm-scroller')
+
       expect(viewer.querySelector('.audit-json-property')).toBeInTheDocument()
       expect(viewer.querySelector('.audit-json-string')).toBeInTheDocument()
       expect(viewer.querySelector('.audit-json-number')).toBeInTheDocument()
       expect(viewer.querySelector('.audit-json-literal')).toBeInTheDocument()
       expect(viewer.querySelector('.cm-lineWrapping')).toBeInTheDocument()
+      if (!editor || !gutters || !scroller) {
+        throw new Error('CodeMirror layout elements are unavailable')
+      }
+      expect(getComputedStyle(editor).fontSize).toBe('0.8125rem')
+      expect(getComputedStyle(gutters).fontSize).toBe('0.75rem')
+      expect(getComputedStyle(scroller).scrollbarWidth).toBe('auto')
     })
   })
 

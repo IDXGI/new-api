@@ -767,9 +767,9 @@ export function useCommonLogsColumns(
             enableHiding: true,
             enableResizing: false,
             enableSorting: false,
-            size: 160,
-            minSize: 160,
-            maxSize: 160,
+            size: 180,
+            minSize: 180,
+            maxSize: 180,
             meta: { label: t('Audit'), widthMode: 'preferred' },
           } satisfies ColumnDef<UsageLog>,
         ]

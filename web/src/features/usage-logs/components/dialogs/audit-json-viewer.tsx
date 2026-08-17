@@ -47,7 +47,7 @@ const auditJsonEditorTheme = EditorView.theme({
   '&': {
     background: 'var(--background)',
     color: 'var(--foreground)',
-    fontSize: '0.75rem',
+    fontSize: '0.8125rem',
     maxHeight: '26.25rem',
     minHeight: '12rem',
     minWidth: '0',
@@ -56,7 +56,7 @@ const auditJsonEditorTheme = EditorView.theme({
   '.cm-content': {
     caretColor: 'transparent',
     fontFamily: 'var(--font-mono)',
-    lineHeight: '1.25rem',
+    lineHeight: '1.375rem',
     minHeight: '12rem',
     minWidth: '0',
     padding: '0.75rem 1rem 1rem 0.5rem',
@@ -70,8 +70,8 @@ const auditJsonEditorTheme = EditorView.theme({
     borderRight: '1px solid var(--border)',
     color: 'var(--muted-foreground)',
     fontFamily: 'var(--font-mono)',
-    fontSize: '0.6875rem',
-    lineHeight: '1.25rem',
+    fontSize: '0.75rem',
+    lineHeight: '1.375rem',
   },
   '.cm-line': {
     overflowWrap: 'anywhere',
@@ -84,11 +84,28 @@ const auditJsonEditorTheme = EditorView.theme({
   },
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
-    lineHeight: '1.25rem',
+    lineHeight: '1.375rem',
     maxHeight: '26.25rem',
     minHeight: '12rem',
     overflowX: 'hidden',
     overflowY: 'auto',
+    scrollbarColor: 'var(--border) var(--background)',
+    scrollbarWidth: 'auto',
+  },
+  '.cm-scroller::-webkit-scrollbar': {
+    height: '12px',
+    width: '12px',
+  },
+  '.cm-scroller::-webkit-scrollbar-track': {
+    background: 'var(--background)',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb': {
+    background: 'var(--border)',
+    border: '2px solid var(--background)',
+    borderRadius: '999px',
+  },
+  '.cm-scroller::-webkit-scrollbar-thumb:hover': {
+    background: 'var(--muted-foreground)',
   },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
     background:

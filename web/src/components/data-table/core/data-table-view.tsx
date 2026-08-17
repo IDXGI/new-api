@@ -40,6 +40,7 @@ import type {
 
 export type {
   DataTableColumnClassName,
+  DataTableColumnWidthMode,
   DataTablePinnedColumn,
   DataTableRenderRowHelpers,
   DataTableViewProps,
@@ -106,6 +107,7 @@ function UnifiedTableView<TData>({
         <DataTableHeader
           table={props.table}
           applyHeaderSize={props.applyHeaderSize}
+          columnWidthMode={props.columnWidthMode}
           className={props.tableHeaderClassName}
           rowClassName={props.tableHeaderRowClassName}
           getColumnClassName={getColumnClassName}
@@ -157,6 +159,7 @@ function SplitHeaderTableView<TData>({
           <DataTableHeader
             table={props.table}
             applyHeaderSize={props.applyHeaderSize}
+            columnWidthMode={props.columnWidthMode}
             className={cn('sticky top-0 z-10', props.tableHeaderClassName)}
             rowClassName={props.tableHeaderRowClassName}
             getColumnClassName={getColumnClassName}
@@ -235,13 +238,22 @@ function getTableSizing<TData>(props: DataTableViewProps<TData>): {
     return { colgroup: props.colgroup }
   }
 
-  if (!props.splitHeader && !props.applyHeaderSize) {
+  if (
+    !props.splitHeader &&
+    !props.applyHeaderSize &&
+    props.columnWidthMode !== 'adaptive'
+  ) {
     return {}
   }
 
   return {
-    colgroup: <DataTableColgroup table={props.table} />,
-    style: getTableSizeStyle(props.table),
+    colgroup: (
+      <DataTableColgroup
+        table={props.table}
+        widthMode={props.columnWidthMode}
+      />
+    ),
+    style: getTableSizeStyle(props.table, props.columnWidthMode),
   }
 }
 

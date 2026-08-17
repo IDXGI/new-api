@@ -15,3 +15,17 @@ continue importing from `@/components/data-table`.
 Keep feature-specific columns, actions, and dialogs inside their feature
 folders. Shared table code belongs here only when it is reusable across more
 than one feature.
+
+## Adaptive column widths
+
+Use `columnWidthMode='adaptive'` on `DataTablePage` or `DataTableView` when a
+table mixes compact status cells with longer text columns. Configure each
+column through `meta.widthMode`:
+
+- `content`: shrink to the intrinsic header and cell content width.
+- `preferred`: stay near the column's TanStack `size` value.
+- `flex`: absorb the remaining table width; pair with a truncating
+  `w-full min-w-0` cell wrapper.
+
+The default remains `proportional`, so existing tables keep their current
+layout unless they opt into adaptive sizing.

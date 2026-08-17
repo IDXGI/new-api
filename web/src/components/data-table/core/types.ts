@@ -32,6 +32,8 @@ export type DataTablePinnedColumn = {
   cellClassName?: string
 }
 
+export type DataTableColumnWidthMode = 'proportional' | 'adaptive'
+
 export type DataTableRenderRowHelpers = {
   getCellClassName: (columnId: string, className?: string) => string | undefined
 }
@@ -56,6 +58,7 @@ export type DataTableViewProps<TData> = {
   getColumnClassName?: DataTableColumnClassName
   pinnedColumns?: DataTablePinnedColumn[]
   applyHeaderSize?: boolean
+  columnWidthMode?: DataTableColumnWidthMode
   tableClassName?: string
   tableHeaderClassName?: string
   tableHeaderRowClassName?: string

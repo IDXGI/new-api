@@ -20,10 +20,20 @@ import type { Table as TanstackTable } from '@tanstack/react-table'
 import type * as React from 'react'
 
 import { isContentSizedColumn } from './content-sized-columns'
+import type { DataTableColumnWidthMode } from './types'
 
 export function getTableSizeStyle<TData>(
-  table: TanstackTable<TData>
+  table: TanstackTable<TData>,
+  widthMode: DataTableColumnWidthMode = 'proportional'
 ): React.CSSProperties {
+  if (widthMode === 'adaptive') {
+    return {
+      minWidth: '100%',
+      tableLayout: 'auto',
+      width: '100%',
+    }
+  }
+
   const width = table
     .getVisibleLeafColumns()
     .filter((column) => !isContentSizedColumn(column.id))

@@ -29,11 +29,15 @@ import { cn } from '@/lib/utils'
 
 import { DataTableColumnHeader } from './column-header'
 import { isContentSizedColumn } from './content-sized-columns'
-import type { DataTableColumnClassName } from './types'
+import type {
+  DataTableColumnClassName,
+  DataTableColumnWidthMode,
+} from './types'
 
 type DataTableHeaderProps<TData> = {
   table: TanstackTable<TData>
   applyHeaderSize?: boolean
+  columnWidthMode?: DataTableColumnWidthMode
   className?: string
   rowClassName?: string
   getColumnClassName?: DataTableColumnClassName
@@ -42,6 +46,7 @@ type DataTableHeaderProps<TData> = {
 export function DataTableHeader<TData>({
   table,
   applyHeaderSize,
+  columnWidthMode = 'proportional',
   className,
   rowClassName,
   getColumnClassName,
@@ -61,7 +66,11 @@ export function DataTableHeader<TData>({
                 'relative',
                 getColumnClassName?.(header.column.id, 'header')
               )}
-              style={getHeaderSizeStyle(header, applyHeaderSize)}
+              style={getHeaderSizeStyle(
+                header,
+                applyHeaderSize,
+                columnWidthMode
+              )}
             >
               {renderHeaderContent(header)}
               {shouldRenderColumnResizer(table, header) && (
@@ -251,8 +260,20 @@ function shouldRenderColumnResizer<TData>(
 
 function getHeaderSizeStyle<TData>(
   header: Header<TData, unknown>,
-  applyHeaderSize: boolean | undefined
+  applyHeaderSize: boolean | undefined,
+  columnWidthMode: DataTableColumnWidthMode
 ) {
+  if (columnWidthMode === 'adaptive') {
+    const minWidth = header.column.columnDef.minSize
+    const maxWidth = header.column.columnDef.maxSize
+
+    if (minWidth === undefined && maxWidth === undefined) {
+      return undefined
+    }
+
+    return { minWidth, maxWidth }
+  }
+
   if (!applyHeaderSize || isContentSizedColumn(header.column.id)) {
     return undefined
   }

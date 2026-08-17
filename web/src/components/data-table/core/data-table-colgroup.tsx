@@ -16,29 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Table as TanstackTable } from '@tanstack/react-table'
+import type { Column, Table as TanstackTable } from '@tanstack/react-table'
 
 import { isContentSizedColumn } from './content-sized-columns'
+import type { DataTableColumnWidthMode } from './types'
 
-export function DataTableColgroup<TData>({
-  table,
-}: {
+export function DataTableColgroup<TData>(props: {
   table: TanstackTable<TData>
+  widthMode?: DataTableColumnWidthMode
 }) {
-  const columns = table.getVisibleLeafColumns()
+  const columns = props.table.getVisibleLeafColumns()
   const sizedColumns = columns.filter(
     (column) => !isContentSizedColumn(column.id)
   )
   const totalSize = sizedColumns.reduce((sum, col) => sum + col.getSize(), 0)
+  const columnSizing = props.table.getState().columnSizing
 
   return (
     <colgroup>
       {columns.map((column) => {
         const width = getColumnWidth(
-          table,
-          column.id,
-          column.getSize(),
-          totalSize
+          props.table,
+          column,
+          totalSize,
+          props.widthMode ?? 'proportional',
+          columnSizing[column.id]
         )
 
         return <col key={column.id} style={{ width }} />
@@ -49,21 +51,43 @@ export function DataTableColgroup<TData>({
 
 function getColumnWidth<TData>(
   table: TanstackTable<TData>,
-  columnId: string,
-  columnSize: number,
-  totalSize: number
+  column: Column<TData, unknown>,
+  totalSize: number,
+  widthMode: DataTableColumnWidthMode,
+  userSize: number | undefined
 ) {
-  if (isContentSizedColumn(columnId)) {
+  if (widthMode === 'adaptive') {
+    if (
+      typeof userSize === 'number' &&
+      Number.isFinite(userSize) &&
+      userSize > 0
+    ) {
+      return `${userSize}px`
+    }
+
+    const columnWidthMode = column.columnDef.meta?.widthMode ?? 'preferred'
+    if (columnWidthMode === 'content' || isContentSizedColumn(column.id)) {
+      return '1%'
+    }
+
+    if (columnWidthMode === 'flex') {
+      return undefined
+    }
+
+    return `${column.getSize()}px`
+  }
+
+  if (isContentSizedColumn(column.id)) {
     return '1%'
   }
 
   if (table.options.enableColumnResizing === true) {
-    return `${columnSize}px`
+    return `${column.getSize()}px`
   }
 
   if (totalSize <= 0) {
     return undefined
   }
 
-  return `${(columnSize / totalSize) * 100}%`
+  return `${(column.getSize() / totalSize) * 100}%`
 }

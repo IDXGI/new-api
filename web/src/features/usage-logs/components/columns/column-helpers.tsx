@@ -97,7 +97,9 @@ export function createTimestampColumn<T>(config: {
         </span>
       )
     },
-    meta: { label: title },
+    size: 172,
+    minSize: 160,
+    meta: { label: title, widthMode: 'preferred' },
   }
 }
 
@@ -158,7 +160,7 @@ export function createDurationColumn<T>(config: {
         />
       )
     },
-    meta: { label: headerLabel },
+    meta: { label: headerLabel, widthMode: 'content' },
   }
 }
 
@@ -192,7 +194,7 @@ export function createChannelColumn<T>(config: {
         />
       )
     },
-    meta: { label: headerLabel },
+    meta: { label: headerLabel, widthMode: 'content' },
   }
 }
 
@@ -223,7 +225,7 @@ export function createFailReasonColumn<T>(config: {
         <>
           <button
             type='button'
-            className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
+            className='group flex w-full min-w-0 items-center gap-1 text-left text-xs'
             onClick={() => setDialogOpen(true)}
             title={cellTitle}
           >
@@ -239,7 +241,10 @@ export function createFailReasonColumn<T>(config: {
         </>
       )
     },
-    meta: { label: headerLabel },
+    size: 180,
+    minSize: 160,
+    maxSize: 220,
+    meta: { label: headerLabel, widthMode: 'preferred' },
   }
 }
 
@@ -268,7 +273,7 @@ export function createProgressColumn<T>(config: {
         </span>
       )
     },
-    meta: { label: headerLabel },
+    meta: { label: headerLabel, widthMode: 'content' },
   }
 }
 
@@ -333,6 +338,6 @@ export function createRequestAuditColumn<T>(config: {
     },
     enableHiding: true,
     size: 110,
-    meta: { label: config.headerLabel },
+    meta: { label: config.headerLabel, widthMode: 'content' },
   }
 }

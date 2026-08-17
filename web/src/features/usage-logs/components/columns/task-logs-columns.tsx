@@ -120,6 +120,9 @@ export function useTaskLogsColumns(
         )
       },
       size: 180,
+      minSize: 170,
+      maxSize: 200,
+      meta: { widthMode: 'preferred' },
     },
   ]
 
@@ -163,6 +166,10 @@ export function useTaskLogsColumns(
           </button>
         )
       },
+      size: 150,
+      minSize: 120,
+      maxSize: 190,
+      meta: { widthMode: 'preferred' },
     })
   }
 
@@ -191,7 +198,10 @@ export function useTaskLogsColumns(
           </div>
         )
       },
-      meta: { mobileTitle: true },
+      size: 170,
+      minSize: 150,
+      maxSize: 220,
+      meta: { mobileTitle: true, widthMode: 'preferred' },
     },
     createDurationColumn<TaskLog>({
       submitTimeKey: 'submit_time',
@@ -215,6 +225,7 @@ export function useTaskLogsColumns(
           />
         )
       },
+      meta: { widthMode: 'content' },
     },
     createProgressColumn<TaskLog>({ headerLabel: t('Progress') }),
     {
@@ -273,7 +284,7 @@ export function useTaskLogsColumns(
           <>
             <button
               type='button'
-              className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
+              className='group flex w-full min-w-0 items-center gap-1 text-left text-xs'
               onClick={() => setDialogOpen(true)}
               title={t('Click to view full error message')}
             >
@@ -290,7 +301,8 @@ export function useTaskLogsColumns(
         )
       },
       size: 200,
-      maxSize: 220,
+      minSize: 200,
+      meta: { widthMode: 'flex' },
     }
   )
 

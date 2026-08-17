@@ -320,6 +320,9 @@ export function useCommonLogsColumns(
       },
       enableHiding: false,
       size: 180,
+      minSize: 170,
+      maxSize: 200,
+      meta: { widthMode: 'preferred' },
     },
   ]
 
@@ -481,6 +484,10 @@ export function useCommonLogsColumns(
             </TooltipProvider>
           )
         },
+        size: 160,
+        minSize: 130,
+        maxSize: 200,
+        meta: { widthMode: 'preferred' },
       },
       {
         id: 'user',
@@ -535,6 +542,10 @@ export function useCommonLogsColumns(
             </button>
           )
         },
+        size: 140,
+        minSize: 120,
+        maxSize: 180,
+        meta: { widthMode: 'preferred' },
       }
     )
   }
@@ -600,6 +611,9 @@ export function useCommonLogsColumns(
       )
     },
     size: 160,
+    minSize: 140,
+    maxSize: 220,
+    meta: { widthMode: 'preferred' },
   })
   columns.push(
     {
@@ -620,7 +634,10 @@ export function useCommonLogsColumns(
           </div>
         )
       },
-      meta: { mobileTitle: true },
+      size: 180,
+      minSize: 140,
+      maxSize: 240,
+      meta: { mobileTitle: true, widthMode: 'preferred' },
     },
     {
       accessorKey: 'is_stream',
@@ -644,7 +661,7 @@ export function useCommonLogsColumns(
           />
         )
       },
-      meta: { label: t('Stream') },
+      meta: { label: t('Stream'), widthMode: 'content' },
     },
     {
       accessorKey: 'prompt_tokens',
@@ -692,6 +709,10 @@ export function useCommonLogsColumns(
           </div>
         )
       },
+      size: 145,
+      minSize: 120,
+      maxSize: 190,
+      meta: { widthMode: 'preferred' },
     },
     {
       accessorKey: 'quota',
@@ -704,6 +725,7 @@ export function useCommonLogsColumns(
         const other = parseLogOther(log.other)
         return <LogCostDisplay quota={quota} other={other} />
       },
+      meta: { widthMode: 'content' },
     },
 
     {
@@ -725,6 +747,7 @@ export function useCommonLogsColumns(
           />
         )
       },
+      meta: { widthMode: 'content' },
     },
 
     ...(canViewRequestAudit
@@ -749,7 +772,7 @@ export function useCommonLogsColumns(
                     render={
                       <button
                         type='button'
-                        className='group max-w-[260px] text-left text-xs'
+                        className='group w-full min-w-0 text-left text-xs'
                         aria-label={t('Answer Content')}
                         onClick={(event) => event.stopPropagation()}
                       />
@@ -774,8 +797,8 @@ export function useCommonLogsColumns(
               )
             },
             size: 260,
-            maxSize: 300,
-            meta: { label: t('Answer Content') },
+            minSize: 220,
+            meta: { label: t('Answer Content'), widthMode: 'flex' },
           } satisfies ColumnDef<UsageLog>,
         ]
       : []),
@@ -826,7 +849,7 @@ export function useCommonLogsColumns(
           <>
             <button
               type='button'
-              className='group flex max-w-[200px] items-center gap-1 text-left text-xs'
+              className='group flex w-full min-w-0 items-center gap-1 text-left text-xs'
               onClick={() => setDialogOpen(true)}
               title={t('Click to view full details')}
             >
@@ -842,7 +865,8 @@ export function useCommonLogsColumns(
         )
       },
       size: 180,
-      maxSize: 200,
+      minSize: 180,
+      meta: { widthMode: 'flex' },
     }
   )
 

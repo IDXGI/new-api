@@ -35,6 +35,7 @@ export {
   DataTableRowActionMenu,
   DataTableView,
   type DataTableColumnClassName,
+  type DataTableColumnWidthMode,
   type DataTablePinnedColumn,
   type DataTableRenderRowHelpers,
 } from './core/data-table-view'

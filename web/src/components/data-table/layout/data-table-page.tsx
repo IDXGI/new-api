@@ -48,6 +48,7 @@ import { cn } from '@/lib/utils'
 import {
   DataTableView,
   type DataTableColumnClassName,
+  type DataTableColumnWidthMode,
   type DataTablePinnedColumn,
   type DataTableRenderRowHelpers,
 } from '../core/data-table-view'
@@ -191,6 +192,14 @@ export type DataTablePageProps<TData> = {
    * which would unintentionally constrain layouts that don't define sizes).
    */
   applyHeaderSize?: boolean
+
+  /**
+   * Column width distribution strategy. `proportional` preserves the default
+   * TanStack size ratios. `adaptive` lets compact columns shrink to content,
+   * keeps preferred columns near their configured size, and gives remaining
+   * space to columns whose meta.widthMode is `flex`.
+   */
+  columnWidthMode?: DataTableColumnWidthMode
 
   /**
    * Optional skeleton key prefix for stable React keys across re-renders.
@@ -429,6 +438,7 @@ function renderMobile<TData>(
           skeletonKeyPrefix={props.skeletonKeyPrefix}
           renderRow={props.renderRow}
           applyHeaderSize={props.applyHeaderSize}
+          columnWidthMode={props.columnWidthMode}
           tableHeaderClassName={cn(
             '[background-color:var(--table-header)]',
             props.tableHeaderClassName
@@ -527,6 +537,7 @@ function renderDesktop<TData>(
       skeletonKeyPrefix={props.skeletonKeyPrefix}
       renderRow={props.renderRow}
       applyHeaderSize={props.applyHeaderSize}
+      columnWidthMode={props.columnWidthMode}
       splitHeader={fixedHeight}
       tableContainerClassName={fixedHeight ? 'h-full min-h-0' : undefined}
       tableHeaderClassName={cn(

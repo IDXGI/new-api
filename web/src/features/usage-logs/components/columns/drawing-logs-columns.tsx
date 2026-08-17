@@ -110,6 +110,9 @@ export function useDrawingLogsColumns(
         )
       },
       size: 180,
+      minSize: 170,
+      maxSize: 200,
+      meta: { widthMode: 'preferred' },
     },
   ]
 
@@ -135,6 +138,7 @@ export function useDrawingLogsColumns(
         />
       )
     },
+    meta: { widthMode: 'content' },
   })
 
   columns.push({
@@ -159,7 +163,10 @@ export function useDrawingLogsColumns(
         </div>
       )
     },
-    meta: { mobileTitle: true },
+    size: 170,
+    minSize: 150,
+    maxSize: 220,
+    meta: { mobileTitle: true, widthMode: 'preferred' },
   })
 
   columns.push(
@@ -187,6 +194,7 @@ export function useDrawingLogsColumns(
           />
         )
       },
+      meta: { widthMode: 'content' },
     })
   }
 
@@ -225,6 +233,7 @@ export function useDrawingLogsColumns(
           </>
         )
       },
+      meta: { widthMode: 'content' },
     },
     {
       accessorKey: 'prompt',
@@ -242,7 +251,7 @@ export function useDrawingLogsColumns(
           <>
             <button
               type='button'
-              className='group flex max-w-[220px] items-center text-left text-xs'
+              className='group flex w-full min-w-0 items-center text-left text-xs'
               onClick={() => setDialogOpen(true)}
               title={t('Click to view full prompt')}
             >
@@ -260,7 +269,8 @@ export function useDrawingLogsColumns(
         )
       },
       size: 200,
-      maxSize: 220,
+      minSize: 200,
+      meta: { widthMode: 'flex' },
     },
     createFailReasonColumn<MidjourneyLog>({
       headerLabel: t('Fail Reason'),

@@ -85,6 +85,7 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		responsePayload = parseAuditPayload(string(audit.ResponsePayload))
 		tracePayload = parseAuditPayload(string(audit.TracePayload))
 	}
+	upstreamRequestPayload, upstreamResponsePayload, tracePayload := splitAuditWirePayloads(tracePayload)
 	upstreamModelName, tracePayload := enrichAuditModelResolution(audit, tracePayload)
 	aggregatedText := model.ExtractAggregatedTextFromResponsePayload(string(audit.ResponsePayload))
 	response := gin.H{
@@ -124,11 +125,34 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		"related_records":     relatedRecords,
 	}
 	if includePayloads {
+		response["client_request"] = requestPayload
+		response["upstream_request"] = upstreamRequestPayload
+		response["upstream_response"] = upstreamResponsePayload
+		response["client_response"] = responsePayload
+		// Keep the original keys for older audit clients.
 		response["request"] = requestPayload
 		response["response"] = responsePayload
 		response["trace"] = tracePayload
 	}
 	return response
+}
+
+func splitAuditWirePayloads(tracePayload any) (any, any, any) {
+	upstreamRequest := any(map[string]any{})
+	upstreamResponse := any(map[string]any{})
+	traceMap, ok := tracePayload.(map[string]any)
+	if !ok || traceMap == nil {
+		return upstreamRequest, upstreamResponse, tracePayload
+	}
+	if value, exists := traceMap["upstream_request"]; exists {
+		upstreamRequest = value
+		delete(traceMap, "upstream_request")
+	}
+	if value, exists := traceMap["upstream_response"]; exists {
+		upstreamResponse = value
+		delete(traceMap, "upstream_response")
+	}
+	return upstreamRequest, upstreamResponse, traceMap
 }
 
 func enrichAuditModelResolution(audit *model.RequestAudit, tracePayload any) (string, any) {

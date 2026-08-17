@@ -1,12 +1,4 @@
-import {
-  Check,
-  Clipboard,
-  Copy,
-  FileJson,
-  Link2,
-  Route,
-  Timer,
-} from 'lucide-react'
+import { Check, Clipboard, Copy, FileJson, Link2, Route } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -218,7 +210,7 @@ function PayloadPlaceholder({ loading }: { loading: boolean }) {
         <EmptyDescription>
           {loading
             ? t(
-                'Request, response and trace details are loading in the background'
+                'Client, upstream and trace details are loading in the background'
               )
             : t('Audit details are not available yet. Please try again later.')}
         </EmptyDescription>
@@ -314,16 +306,22 @@ export function RequestAuditDialog({
 }: RequestAuditDialogProps) {
   const { t } = useTranslation()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const [activeDetailTab, setActiveDetailTab] = useState('summary')
+  const [activeDetailTab, setActiveDetailTab] = useState('client-request')
   const [relatedFilter, setRelatedFilter] = useState(RELATED_FILTER_ALL)
 
   useEffect(() => {
-    setActiveDetailTab('summary')
+    setActiveDetailTab('client-request')
     setRelatedFilter(RELATED_FILTER_ALL)
   }, [auditRecord?.request_id, open])
 
   const payloadsLoaded = auditRecord?.payloads_loaded !== false
   const aggregatedText = getAuditAggregatedText(auditRecord)
+  const clientRequestPayload =
+    auditRecord?.client_request ?? auditRecord?.request
+  const upstreamRequestPayload = auditRecord?.upstream_request
+  const upstreamResponsePayload = auditRecord?.upstream_response
+  const clientResponsePayload =
+    auditRecord?.client_response ?? auditRecord?.response
   const relatedRecords = useMemo(
     () =>
       Array.isArray(auditRecord?.related_records)
@@ -395,8 +393,10 @@ export function RequestAuditDialog({
                     {(
                       [
                         [t('Request ID'), auditRecord.request_id],
-                        [t('Request'), auditRecord.request],
-                        [t('Response'), auditRecord.response],
+                        [t('Client Request'), clientRequestPayload],
+                        [t('Upstream Request'), upstreamRequestPayload],
+                        [t('Upstream Response'), upstreamResponsePayload],
+                        [t('Client Response'), clientResponsePayload],
                         [t('Trace'), auditRecord.trace],
                       ] as Array<[string, unknown]>
                     ).map(([label, value]) => (
@@ -659,7 +659,7 @@ export function RequestAuditDialog({
                 title={t('Audit Payloads')}
                 description={
                   payloadsLoaded
-                    ? t('Structured request, response and relay trace payloads')
+                    ? t('Compare payloads at each client and upstream boundary')
                     : t(
                         'Large request and response payloads load after the overview'
                       )
@@ -681,72 +681,60 @@ export function RequestAuditDialog({
                   onValueChange={setActiveDetailTab}
                 >
                   <TabsList className='h-auto max-w-full flex-wrap justify-start'>
-                    <TabsTrigger value='summary'>
-                      <Timer data-icon='inline-start' />
-                      {t('Summary')}
-                    </TabsTrigger>
-                    <TabsTrigger value='request'>
+                    <TabsTrigger value='client-request'>
                       <Link2 data-icon='inline-start' />
-                      {t('Request')}
+                      {t('Client Request')}
                     </TabsTrigger>
-                    <TabsTrigger value='response'>
-                      <FileJson data-icon='inline-start' />
-                      {t('Response')}
-                    </TabsTrigger>
-                    <TabsTrigger value='trace'>
+                    <TabsTrigger value='upstream-request'>
                       <Route data-icon='inline-start' />
-                      {t('Trace')}
+                      {t('Upstream Request')}
+                    </TabsTrigger>
+                    <TabsTrigger value='upstream-response'>
+                      <FileJson data-icon='inline-start' />
+                      {t('Upstream Response')}
+                    </TabsTrigger>
+                    <TabsTrigger value='client-response'>
+                      <Clipboard data-icon='inline-start' />
+                      {t('Client Response')}
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value='summary'>
-                    <JsonBlock
-                      value={{
-                        request_id: auditRecord.request_id,
-                        route_group: auditRecord.route_group,
-                        route_path: auditRecord.route_path,
-                        method: auditRecord.method,
-                        status_code: auditRecord.status_code,
-                        success: auditRecord.success,
-                        relay_format: auditRecord.relay_format,
-                        relay_mode: auditRecord.relay_mode,
-                        model_name: auditRecord.model_name,
-                        upstream_model_name: auditRecord.upstream_model_name,
-                        group: auditRecord.group,
-                        token_id: auditRecord.token_id,
-                        token_name: auditRecord.token_name,
-                        channel_id: auditRecord.channel_id,
-                        channel_name: auditRecord.channel_name,
-                        channel_type: auditRecord.channel_type,
-                        task_id: auditRecord.task_id,
-                        mj_id: auditRecord.mj_id,
-                        latency_ms: auditRecord.latency_ms,
-                        first_response_ms: auditRecord.first_response_ms,
-                        retry_count: auditRecord.retry_count,
-                      }}
-                    />
-                  </TabsContent>
-                  <TabsContent value='request'>
+                  <TabsContent value='client-request'>
                     {payloadsLoaded ? (
-                      <JsonBlock value={auditRecord.request} />
+                      <JsonBlock value={clientRequestPayload} />
                     ) : (
                       <PayloadPlaceholder loading={payloadLoading} />
                     )}
                   </TabsContent>
-                  <TabsContent value='response'>
+                  <TabsContent value='upstream-request'>
                     {payloadsLoaded ? (
-                      <JsonBlock value={auditRecord.response} />
+                      <JsonBlock value={upstreamRequestPayload} />
                     ) : (
                       <PayloadPlaceholder loading={payloadLoading} />
                     )}
                   </TabsContent>
-                  <TabsContent value='trace'>
+                  <TabsContent value='upstream-response'>
                     {payloadsLoaded ? (
-                      <JsonBlock value={auditRecord.trace} />
+                      <JsonBlock value={upstreamResponsePayload} />
+                    ) : (
+                      <PayloadPlaceholder loading={payloadLoading} />
+                    )}
+                  </TabsContent>
+                  <TabsContent value='client-response'>
+                    {payloadsLoaded ? (
+                      <JsonBlock value={clientResponsePayload} />
                     ) : (
                       <PayloadPlaceholder loading={payloadLoading} />
                     )}
                   </TabsContent>
                 </Tabs>
+              </AuditSection>
+
+              <AuditSection title={t('Trace')}>
+                {payloadsLoaded ? (
+                  <JsonBlock value={auditRecord.trace} />
+                ) : (
+                  <PayloadPlaceholder loading={payloadLoading} />
+                )}
               </AuditSection>
             </div>
           ) : (

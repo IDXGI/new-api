@@ -20,6 +20,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
+	response_rewrite "github.com/QuantumNous/new-api/relay/response_rewrite"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
@@ -127,6 +128,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest)
 		}
 		return
+	}
+	if bodyStorage, bodyErr := common.GetBodyStorage(c); bodyErr == nil {
+		if body, readErr := bodyStorage.Bytes(); readErr == nil && response_rewrite.CaptureClientRequest(c, relayFormat, body) {
+			response_rewrite.WrapResponseWriter(c)
+		}
 	}
 
 	relayInfo, err := relaycommon.GenRelayInfo(c, relayFormat, request, ws)

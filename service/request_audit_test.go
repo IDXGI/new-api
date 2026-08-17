@@ -1,6 +1,9 @@
 package service
 
 import (
+	"bytes"
+	"io"
+	"net/http"
 	"testing"
 
 	"github.com/QuantumNous/new-api/model"
@@ -19,8 +22,56 @@ func TestGetRequestAuditStateInitializesNilInternals(t *testing.T) {
 	require.NotNil(t, state)
 	require.NotNil(t, state.Audit)
 	require.NotNil(t, state.RequestPayload)
+	require.NotNil(t, state.UpstreamRequestPayload)
+	require.NotNil(t, state.UpstreamResponsePayload)
 	require.NotNil(t, state.ResponsePayload)
 	require.NotNil(t, state.TracePayload)
+}
+
+func TestCaptureRequestAuditUpstreamRequestStoresFinalWireBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(nil)
+	c.Set(requestAuditContextKey, &requestAuditState{Audit: &model.RequestAudit{ModelName: "A"}})
+	req, err := http.NewRequest(http.MethodPost, "https://upstream.example/v1/responses", bytes.NewReader([]byte(`{"model":"C","reasoning":{"effort":"max"}}`)))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer secret-value")
+
+	CaptureRequestAuditUpstreamRequest(c, req)
+
+	state := GetRequestAuditState(c)
+	require.Equal(t, "C", state.Audit.UpstreamModelName)
+	require.Equal(t, "json", state.UpstreamRequestPayload["body_kind"])
+	bodyJSON, ok := state.UpstreamRequestPayload["body_json"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "C", bodyJSON["model"])
+	headers, ok := state.UpstreamRequestPayload["headers"].(map[string]string)
+	require.True(t, ok)
+	require.NotEqual(t, "Bearer secret-value", headers["Authorization"])
+}
+
+func TestCaptureRequestAuditUpstreamResponseKeepsRawPayloadBeforeClientRewrite(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(nil)
+	state := &requestAuditState{Audit: &model.RequestAudit{}}
+	c.Set(requestAuditContextKey, state)
+	resp := &http.Response{
+		StatusCode:    http.StatusOK,
+		Status:        "200 OK",
+		Header:        http.Header{"Content-Type": []string{"application/json"}},
+		Body:          io.NopCloser(bytes.NewReader([]byte(`{"model":"upstream-model"}`))),
+		ContentLength: int64(len(`{"model":"upstream-model"}`)),
+	}
+
+	CaptureRequestAuditUpstreamResponse(c, resp)
+	readBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, `{"model":"upstream-model"}`, string(readBody))
+	finalizeRequestAuditUpstreamResponse(GetRequestAuditState(c))
+
+	bodyJSON, ok := GetRequestAuditState(c).UpstreamResponsePayload["body_json"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "upstream-model", bodyJSON["model"])
 }
 
 func TestCaptureRequestAuditRelayInfoWithMinimalStateDoesNotPanic(t *testing.T) {

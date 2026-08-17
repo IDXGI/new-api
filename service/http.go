@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	response_rewrite "github.com/QuantumNous/new-api/relay/response_rewrite"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +46,12 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 	if c.Writer == nil {
 		return
 	}
+	rewritten, err := response_rewrite.RewriteJSON(c, data)
+	if err != nil {
+		logger.LogWarn(c, "response identity rewrite failed: "+err.Error())
+	} else {
+		data = rewritten
+	}
 
 	body := io.NopCloser(bytes.NewBuffer(data))
 
@@ -71,7 +78,7 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 		c.Writer.WriteHeader(http.StatusOK)
 	}
 
-	_, err := io.Copy(c.Writer, body)
+	_, err = io.Copy(c.Writer, body)
 	if err != nil {
 		logger.LogError(c, fmt.Sprintf("failed to copy response body: %s", err.Error()))
 	}

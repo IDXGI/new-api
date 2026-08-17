@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -28,12 +29,15 @@ const (
 )
 
 type requestAuditState struct {
-	Audit           *model.RequestAudit
-	RequestPayload  map[string]any
-	ResponsePayload map[string]any
-	TracePayload    map[string]any
-	RelayInfo       *relaycommon.RelayInfo
-	Writer          *auditResponseWriter
+	Audit                   *model.RequestAudit
+	RequestPayload          map[string]any
+	UpstreamRequestPayload  map[string]any
+	UpstreamResponsePayload map[string]any
+	ResponsePayload         map[string]any
+	TracePayload            map[string]any
+	RelayInfo               *relaycommon.RelayInfo
+	Writer                  *auditResponseWriter
+	UpstreamResponseCapture *auditBodyCapture
 }
 
 func ensureRequestAuditState(state *requestAuditState) *requestAuditState {
@@ -45,6 +49,12 @@ func ensureRequestAuditState(state *requestAuditState) *requestAuditState {
 	}
 	if state.RequestPayload == nil {
 		state.RequestPayload = make(map[string]any)
+	}
+	if state.UpstreamRequestPayload == nil {
+		state.UpstreamRequestPayload = make(map[string]any)
+	}
+	if state.UpstreamResponsePayload == nil {
+		state.UpstreamResponsePayload = make(map[string]any)
 	}
 	if state.ResponsePayload == nil {
 		state.ResponsePayload = make(map[string]any)
@@ -62,6 +72,43 @@ type auditResponseWriter struct {
 	maxBytes     int
 	truncated    bool
 	firstWriteAt time.Time
+}
+
+type auditBodyCapture struct {
+	io.ReadCloser
+	buffer     bytes.Buffer
+	totalBytes int64
+	maxBytes   int
+	truncated  bool
+}
+
+func (c *auditBodyCapture) Read(data []byte) (int, error) {
+	read, err := c.ReadCloser.Read(data)
+	if read > 0 {
+		c.capture(data[:read])
+	}
+	return read, err
+}
+
+func (c *auditBodyCapture) capture(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	c.totalBytes += int64(len(data))
+	if c.maxBytes <= 0 || c.truncated {
+		return
+	}
+	remaining := c.maxBytes - c.buffer.Len()
+	if remaining <= 0 {
+		c.truncated = true
+		return
+	}
+	if len(data) > remaining {
+		_, _ = c.buffer.Write(data[:remaining])
+		c.truncated = true
+		return
+	}
+	_, _ = c.buffer.Write(data)
 }
 
 func (w *auditResponseWriter) Write(data []byte) (int, error) {
@@ -150,9 +197,11 @@ func BeginRequestAudit(c *gin.Context, routeGroup string) *requestAuditState {
 			TokenId:    c.GetInt("token_id"),
 			TokenName:  c.GetString("token_name"),
 		},
-		RequestPayload:  make(map[string]any),
-		ResponsePayload: make(map[string]any),
-		TracePayload:    make(map[string]any),
+		RequestPayload:          make(map[string]any),
+		UpstreamRequestPayload:  make(map[string]any),
+		UpstreamResponsePayload: make(map[string]any),
+		ResponsePayload:         make(map[string]any),
+		TracePayload:            make(map[string]any),
 	}
 	state.Writer = &auditResponseWriter{
 		ResponseWriter: c.Writer,
@@ -257,6 +306,99 @@ func CaptureRequestAuditRelayInfo(c *gin.Context, info *relaycommon.RelayInfo) {
 	}
 }
 
+func CaptureRequestAuditUpstreamRequest(c *gin.Context, req *http.Request) {
+	state := ensureRequestAuditState(GetRequestAuditState(c))
+	if state == nil || req == nil {
+		return
+	}
+
+	payload := map[string]any{
+		"method":       req.Method,
+		"headers":      sanitizeHeaders(req.Header),
+		"content_type": req.Header.Get("Content-Type"),
+	}
+	if req.URL != nil {
+		payload["url"] = requestAuditURL(req.URL)
+		payload["query"] = sanitizeQuery(req.URL.Query())
+	}
+	state.UpstreamRequestPayload = payload
+	state.UpstreamResponsePayload = make(map[string]any)
+	state.UpstreamResponseCapture = nil
+
+	if req.Body == nil {
+		payload["body_kind"] = "none"
+		return
+	}
+	if req.ContentLength >= 0 {
+		payload["body_size"] = req.ContentLength
+	}
+	contentType := req.Header.Get("Content-Type")
+	if isBinaryContentType(contentType) || strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
+		payload["body_kind"] = "binary"
+		payload["body_meta"] = map[string]any{
+			"size":         req.ContentLength,
+			"content_type": contentType,
+		}
+		return
+	}
+	if req.GetBody == nil {
+		payload["body_kind"] = "unavailable"
+		payload["body_error"] = "request body is not replayable"
+		return
+	}
+
+	body, err := req.GetBody()
+	if err != nil {
+		payload["body_kind"] = "unavailable"
+		payload["body_error"] = err.Error()
+		return
+	}
+	defer body.Close()
+	bodyBytes, truncated, err := readAuditBody(body)
+	if err != nil {
+		payload["body_kind"] = "unavailable"
+		payload["body_error"] = err.Error()
+		return
+	}
+	totalBytes := req.ContentLength
+	if totalBytes < 0 {
+		totalBytes = int64(len(bodyBytes))
+	}
+	populateAuditBody(payload, bodyBytes, totalBytes, truncated, contentType)
+	if bodyJSON, ok := payload["body_json"].(map[string]any); ok {
+		if modelName, ok := bodyJSON["model"].(string); ok && strings.TrimSpace(modelName) != "" {
+			state.Audit.UpstreamModelName = strings.TrimSpace(modelName)
+		}
+	}
+}
+
+func CaptureRequestAuditUpstreamResponse(c *gin.Context, resp *http.Response) {
+	state := ensureRequestAuditState(GetRequestAuditState(c))
+	if state == nil || resp == nil {
+		return
+	}
+	payload := map[string]any{
+		"status_code":  resp.StatusCode,
+		"status":       resp.Status,
+		"headers":      sanitizeHeaders(resp.Header),
+		"content_type": resp.Header.Get("Content-Type"),
+	}
+	if resp.ContentLength >= 0 {
+		payload["body_size"] = resp.ContentLength
+	}
+	state.UpstreamResponsePayload = payload
+	if resp.Body == nil {
+		payload["body_kind"] = "none"
+		return
+	}
+	capture := &auditBodyCapture{
+		ReadCloser: resp.Body,
+		maxBytes:   getRequestAuditMaxTextBytes(),
+	}
+	state.UpstreamResponseCapture = capture
+	resp.Body = capture
+}
+
 func AppendRequestAuditAttempt(c *gin.Context, channelID int, channelName string, channelType int, retryIndex int, err error) {
 	state := GetRequestAuditState(c)
 	if state == nil {
@@ -348,8 +490,11 @@ func FinishRequestAudit(c *gin.Context) error {
 		}
 	}
 	captureRequestAuditResponse(c, state)
+	finalizeRequestAuditUpstreamResponse(state)
 	attachLinkedLogs(state)
 	syncRequestAuditRelayInfo(state)
+	state.TracePayload["upstream_request"] = state.UpstreamRequestPayload
+	state.TracePayload["upstream_response"] = state.UpstreamResponsePayload
 	state.Audit.RequestPayload = model.RequestAuditPayload(marshalAuditPart(state.RequestPayload))
 	state.Audit.ResponsePayload = model.RequestAuditPayload(marshalAuditPart(state.ResponsePayload))
 	state.Audit.TracePayload = model.RequestAuditPayload(marshalAuditPart(state.TracePayload))
@@ -429,10 +574,12 @@ func syncRequestAuditRelayInfo(state *requestAuditState) {
 	info := state.RelayInfo
 	state.Audit.ModelName = common.GetStringIfEmpty(state.Audit.ModelName, info.OriginModelName)
 
-	upstreamModelName := ""
+	upstreamModelName := state.Audit.UpstreamModelName
 	isModelMapped := false
 	if info.ChannelMeta != nil {
-		upstreamModelName = info.ChannelMeta.UpstreamModelName
+		if upstreamModelName == "" {
+			upstreamModelName = info.ChannelMeta.UpstreamModelName
+		}
 		isModelMapped = info.ChannelMeta.IsModelMapped
 	}
 	if upstreamModelName == "" {
@@ -564,6 +711,92 @@ func captureRequestAuditResponse(c *gin.Context, state *requestAuditState) {
 	}
 	state.ResponsePayload["body_kind"] = "text"
 	state.ResponsePayload["body_text"] = rawText
+}
+
+func finalizeRequestAuditUpstreamResponse(state *requestAuditState) {
+	if state == nil || state.UpstreamResponsePayload == nil {
+		return
+	}
+	capture := state.UpstreamResponseCapture
+	if capture == nil {
+		if _, exists := state.UpstreamResponsePayload["body_kind"]; !exists {
+			state.UpstreamResponsePayload["body_kind"] = "unavailable"
+		}
+		return
+	}
+	contentType, _ := state.UpstreamResponsePayload["content_type"].(string)
+	populateAuditBody(
+		state.UpstreamResponsePayload,
+		capture.buffer.Bytes(),
+		capture.totalBytes,
+		capture.truncated,
+		contentType,
+	)
+}
+
+func readAuditBody(reader io.Reader) ([]byte, bool, error) {
+	maxBytes := getRequestAuditMaxTextBytes()
+	if maxBytes <= 0 {
+		return nil, false, nil
+	}
+	body, err := io.ReadAll(io.LimitReader(reader, int64(maxBytes)+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if len(body) <= maxBytes {
+		return body, false, nil
+	}
+	return body[:maxBytes], true, nil
+}
+
+func populateAuditBody(payload map[string]any, bodyBytes []byte, totalBytes int64, truncated bool, contentType string) {
+	if payload == nil {
+		return
+	}
+	payload["body_size"] = totalBytes
+	payload["body_truncated"] = truncated
+	if len(bodyBytes) == 0 {
+		if isBinaryContentType(contentType) {
+			payload["body_kind"] = "binary"
+			payload["body_meta"] = map[string]any{
+				"size":         totalBytes,
+				"content_type": contentType,
+			}
+			return
+		}
+		payload["body_kind"] = "empty"
+		return
+	}
+	if isBinaryContentType(contentType) {
+		payload["body_kind"] = "binary"
+		payload["body_meta"] = map[string]any{
+			"size":         totalBytes,
+			"content_type": contentType,
+			"captured":     len(bodyBytes),
+		}
+		return
+	}
+	rawText := truncateAuditText(string(bodyBytes))
+	if strings.Contains(strings.ToLower(contentType), "text/event-stream") {
+		payload["body_kind"] = "event_stream"
+		payload["body_text"] = rawText
+		return
+	}
+	var bodyJSON any
+	if common.Unmarshal(bodyBytes, &bodyJSON) == nil {
+		payload["body_kind"] = "json"
+		payload["body_json"] = sanitizeObject(bodyJSON)
+		return
+	}
+	payload["body_kind"] = "text"
+	payload["body_text"] = rawText
+}
+
+func requestAuditURL(value *url.URL) string {
+	if value == nil {
+		return ""
+	}
+	return value.Scheme + "://" + value.Host + value.EscapedPath()
 }
 
 func sanitizeHeaders(headers http.Header) map[string]string {

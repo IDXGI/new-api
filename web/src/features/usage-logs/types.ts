@@ -458,6 +458,10 @@ export interface RequestAuditRecord extends RequestAuditRelatedRecord {
   aggregated_text?: string
   payloads_loaded?: boolean
   related_records?: RequestAuditRelatedRecord[]
+  client_request?: unknown
+  upstream_request?: unknown
+  upstream_response?: unknown
+  client_response?: unknown
   request?: unknown
   response?: unknown
   trace?: unknown

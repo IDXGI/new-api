@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -113,6 +114,40 @@ func TestCaptureRequestAuditRelayInfoWithoutChannelMetaDoesNotPanic(t *testing.T
 	state := GetRequestAuditState(c)
 	require.Equal(t, "", state.Audit.UpstreamModelName)
 	require.Equal(t, "deepseek-chat", state.Audit.ModelName)
+}
+
+func TestCaptureRequestAuditRelayInfoKeepsWirePayloadsSerializable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(nil)
+	c.Set(requestAuditContextKey, &requestAuditState{Audit: &model.RequestAudit{}})
+
+	info := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "client-model",
+	}
+	info.PriceData.AddOtherRatio("duration", 2)
+	CaptureRequestAuditRelayInfo(c, info)
+
+	state := GetRequestAuditState(c)
+	state.TracePayload["upstream_request"] = map[string]any{
+		"body_json": map[string]any{"model": "upstream-model"},
+	}
+	state.TracePayload["upstream_response"] = map[string]any{
+		"body_json": map[string]any{"model": "upstream-model"},
+	}
+
+	raw := marshalAuditPart(state.TracePayload)
+	require.NotEmpty(t, raw)
+
+	var trace map[string]any
+	require.NoError(t, common.Unmarshal([]byte(raw), &trace))
+	require.Contains(t, trace, "upstream_request")
+	require.Contains(t, trace, "upstream_response")
+	billing, ok := trace["billing"].(map[string]any)
+	require.True(t, ok)
+	otherRatios, ok := billing["other_ratios"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, float64(2), otherRatios["duration"])
 }
 
 func TestSyncRequestAuditRelayInfoCapturesMappedModel(t *testing.T) {

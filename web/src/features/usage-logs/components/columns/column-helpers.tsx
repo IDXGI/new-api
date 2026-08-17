@@ -310,6 +310,7 @@ export function createRequestAuditColumn<T>(config: {
                   type='button'
                   variant='ghost'
                   size='sm'
+                  className='w-full justify-center'
                   disabled={!canOpen}
                   onClick={(event) => {
                     event.stopPropagation()
@@ -337,7 +338,10 @@ export function createRequestAuditColumn<T>(config: {
       )
     },
     enableHiding: true,
+    enableResizing: false,
     size: 110,
-    meta: { label: config.headerLabel, widthMode: 'content' },
+    minSize: 110,
+    maxSize: 110,
+    meta: { label: config.headerLabel, widthMode: 'preferred' },
   }
 }

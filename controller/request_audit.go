@@ -265,6 +265,9 @@ func parseAuditPayload(raw string) any {
 	if err := common.Unmarshal([]byte(raw), &payload); err != nil {
 		return raw
 	}
+	if payloadMap, ok := payload.(map[string]any); ok {
+		delete(payloadMap, model.RequestAuditAggregatedTextPreviewKey)
+	}
 	return payload
 }
 

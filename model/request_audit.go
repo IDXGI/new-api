@@ -6,11 +6,15 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/tidwall/gjson"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
 const (
+	// RequestAuditAggregatedTextPreviewKey stores the internal list preview inside the response payload.
+	RequestAuditAggregatedTextPreviewKey = "_aggregated_text_preview"
+
 	taskAuditOrderExpr = "CASE " +
 		"WHEN route_group = 'task_submit' THEN 0 " +
 		"WHEN route_group = 'task_fetch' THEN 1 " +
@@ -23,6 +27,8 @@ const (
 		"WHEN route_group = 'midjourney_notify' THEN 3 " +
 		"ELSE 4 END, id DESC"
 )
+
+const requestAuditAggregatedTextPreviewRuneLimit = 240
 
 type RequestAudit struct {
 	ID                int64               `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -199,6 +205,45 @@ func ExtractAggregatedTextFromResponsePayload(raw string) string {
 	return ExtractAggregatedTextFromAuditPayload(payload)
 }
 
+func AttachRequestAuditAggregatedTextPreview(payload map[string]any) {
+	if len(payload) == 0 {
+		return
+	}
+	preview := buildRequestAuditAggregatedTextPreview(ExtractAggregatedTextFromAuditPayload(payload))
+	if preview == "" {
+		return
+	}
+	payload[RequestAuditAggregatedTextPreviewKey] = preview
+}
+
+func buildRequestAuditAggregatedTextPreview(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	runeCount := 0
+	for byteIndex := range text {
+		if runeCount == requestAuditAggregatedTextPreviewRuneLimit {
+			return strings.TrimSpace(text[:byteIndex]) + "..."
+		}
+		runeCount++
+	}
+	return text
+}
+
+func extractRequestAuditAggregatedTextPreview(raw string) string {
+	if strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	storedPreview := gjson.Get(raw, RequestAuditAggregatedTextPreviewKey)
+	if storedPreview.Type == gjson.String {
+		if preview := buildRequestAuditAggregatedTextPreview(storedPreview.String()); preview != "" {
+			return preview
+		}
+	}
+	return buildRequestAuditAggregatedTextPreview(ExtractAggregatedTextFromResponsePayload(raw))
+}
+
 func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, error) {
 	result := make(map[string]string)
 	if len(requestIDs) == 0 {
@@ -234,7 +279,7 @@ func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, err
 	}
 
 	for _, audit := range audits {
-		aggregatedText := ExtractAggregatedTextFromResponsePayload(audit.ResponsePayload)
+		aggregatedText := extractRequestAuditAggregatedTextPreview(audit.ResponsePayload)
 		if aggregatedText == "" {
 			continue
 		}

@@ -279,7 +279,7 @@ func CaptureRequestAuditRelayInfo(c *gin.Context, info *relaycommon.RelayInfo) {
 		"cache_creation_ratio":           info.PriceData.CacheCreationRatio,
 		"cache_creation_ratio_5m":        info.PriceData.CacheCreation5mRatio,
 		"cache_creation_ratio_1h":        info.PriceData.CacheCreation1hRatio,
-		"other_ratios":                   info.PriceData.OtherRatios,
+		"other_ratios":                   info.PriceData.OtherRatios(),
 		"price_data_quota":               info.PriceData.Quota,
 		"price_data_quota_to_preconsume": info.PriceData.QuotaToPreConsume,
 	}
@@ -493,6 +493,7 @@ func FinishRequestAudit(c *gin.Context) error {
 	finalizeRequestAuditUpstreamResponse(state)
 	attachLinkedLogs(state)
 	syncRequestAuditRelayInfo(state)
+	model.AttachRequestAuditAggregatedTextPreview(state.ResponsePayload)
 	state.TracePayload["upstream_request"] = state.UpstreamRequestPayload
 	state.TracePayload["upstream_response"] = state.UpstreamResponsePayload
 	state.Audit.RequestPayload = model.RequestAuditPayload(marshalAuditPart(state.RequestPayload))

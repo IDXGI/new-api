@@ -12,7 +12,7 @@ import (
 func TestBuildRequestAuditResponseExposesFourWireBoundaries(t *testing.T) {
 	audit := &model.RequestAudit{
 		RequestPayload:  model.RequestAuditPayload(`{"body_json":{"model":"client-model"}}`),
-		ResponsePayload: model.RequestAuditPayload(`{"body_json":{"model":"client-model"}}`),
+		ResponsePayload: model.RequestAuditPayload(`{"_aggregated_text_preview":"answer preview","body_json":{"model":"client-model"}}`),
 		TracePayload: model.RequestAuditPayload(`{
 			"request_conversion":["openai","claude"],
 			"upstream_request":{"body_json":{"model":"upstream-model"}},
@@ -36,6 +36,7 @@ func TestBuildRequestAuditResponseExposesFourWireBoundaries(t *testing.T) {
 	assert.Contains(t, upstreamRequest, "body_json")
 	assert.Contains(t, upstreamResponse, "body_json")
 	assert.Contains(t, clientResponse, "body_json")
+	assert.NotContains(t, clientResponse, model.RequestAuditAggregatedTextPreviewKey)
 	assert.Contains(t, trace, "request_conversion")
 	assert.NotContains(t, trace, "upstream_request")
 	assert.NotContains(t, trace, "upstream_response")

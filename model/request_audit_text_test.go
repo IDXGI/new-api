@@ -111,3 +111,46 @@ func TestExtractAggregatedTextFromAuditPayload_FallsBackToStructuredJSONContent(
 
 	require.Equal(t, "*** Begin Patch\n*** Add File: demo.txt\n*** End Patch", aggregated)
 }
+
+func TestBuildRequestAuditAggregatedTextPreview_TruncatesByRune(t *testing.T) {
+	text := strings.Repeat("回答", 200)
+
+	preview := buildRequestAuditAggregatedTextPreview(text)
+
+	require.Equal(t, requestAuditAggregatedTextPreviewRuneLimit+3, len([]rune(preview)))
+	require.Equal(t, "...", string([]rune(preview)[requestAuditAggregatedTextPreviewRuneLimit:]))
+}
+
+func TestAttachRequestAuditAggregatedTextPreviewStoresBoundedText(t *testing.T) {
+	payload := map[string]any{
+		"body_kind": "json",
+		"body_json": map[string]any{
+			"choices": []any{
+				map[string]any{
+					"message": map[string]any{
+						"content": strings.Repeat("answer", 100),
+					},
+				},
+			},
+		},
+	}
+
+	AttachRequestAuditAggregatedTextPreview(payload)
+
+	preview, ok := payload[RequestAuditAggregatedTextPreviewKey].(string)
+	require.True(t, ok)
+	require.LessOrEqual(t, len([]rune(preview)), requestAuditAggregatedTextPreviewRuneLimit+3)
+}
+
+func TestExtractRequestAuditAggregatedTextPreview_PrefersStoredPreview(t *testing.T) {
+	rawPayload, err := common.Marshal(map[string]any{
+		RequestAuditAggregatedTextPreviewKey: "stored answer preview",
+		"body_kind":                          "event_stream",
+		"body_text":                          "data: invalid-json",
+	})
+	require.NoError(t, err)
+
+	preview := extractRequestAuditAggregatedTextPreview(string(rawPayload))
+
+	require.Equal(t, "stored answer preview", preview)
+}

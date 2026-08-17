@@ -53,6 +53,7 @@ describe('AuditJsonViewer', () => {
       expect(viewer.querySelector('.audit-json-string')).toBeInTheDocument()
       expect(viewer.querySelector('.audit-json-number')).toBeInTheDocument()
       expect(viewer.querySelector('.audit-json-literal')).toBeInTheDocument()
+      expect(viewer.querySelector('.cm-lineWrapping')).toBeInTheDocument()
     })
   })
 

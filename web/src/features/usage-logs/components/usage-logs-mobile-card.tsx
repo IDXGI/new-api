@@ -329,7 +329,6 @@ function CommonLogsCard<TData>({
             cell={quotaCell}
             className='text-right [&_.flex-col]:items-end'
           />
-          {auditCell && <CompactCell cell={auditCell} />}
         </div>
       </div>
 
@@ -364,13 +363,13 @@ function CommonLogsCard<TData>({
           <SummaryField cell={cells.get('prompt_tokens')} />
         )}
         <SummaryField
-          label={t('Details')}
-          cell={cells.get('content')}
+          label={t('Audit')}
+          cell={auditCell}
           className='col-span-2 bg-transparent px-0 py-0'
         />
         <SummaryField
-          label={t('Answer Content')}
-          cell={cells.get('aggregated_text')}
+          label={t('Details')}
+          cell={cells.get('content')}
           className='col-span-2 bg-transparent px-0 py-0'
         />
       </div>

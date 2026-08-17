@@ -56,10 +56,33 @@ describe('usage log adaptive column widths', () => {
     const columns = result.current as ColumnDef<unknown>[]
 
     expect(getColumn(columns, 'created_at').meta?.widthMode).toBe('preferred')
+    const channelColumn = getColumn(columns, 'channel')
+    const userColumn = getColumn(columns, 'user')
+    const tokenColumn = getColumn(columns, 'token_name')
+    expect(channelColumn.meta?.widthMode).toBe('content')
+    expect(userColumn.meta?.widthMode).toBe('content')
+    expect(tokenColumn.meta?.widthMode).toBe('content')
+    expect(channelColumn.minSize).toBeUndefined()
+    expect(userColumn.minSize).toBeUndefined()
+    expect(tokenColumn.minSize).toBeUndefined()
     expect(getColumn(columns, 'is_stream').meta?.widthMode).toBe('content')
     expect(getColumn(columns, 'quota').meta?.widthMode).toBe('content')
     expect(getColumn(columns, 'content').meta?.widthMode).toBe('flex')
-    expect(getColumn(columns, 'audit').meta?.widthMode).toBe('content')
+    const auditColumn = getColumn(columns, 'audit')
+    expect(auditColumn.meta?.widthMode).toBe('preferred')
+    expect(auditColumn.size).toBe(220)
+    expect(auditColumn.minSize).toBe(220)
+    expect(auditColumn.maxSize).toBe(220)
+    expect(auditColumn.enableResizing).toBe(false)
+    expect(
+      columns.some(
+        (column) =>
+          (column as ColumnWithAccessor).accessorKey === 'aggregated_text'
+      )
+    ).toBe(false)
+    expect(columns.indexOf(auditColumn)).toBeLessThan(
+      columns.indexOf(getColumn(columns, 'content'))
+    )
   })
 
   test('keeps drawing statuses compact and gives prompt the remaining width', () => {
@@ -70,7 +93,7 @@ describe('usage log adaptive column widths', () => {
     expect(getColumn(columns, 'duration').meta?.widthMode).toBe('content')
     expect(getColumn(columns, 'prompt').meta?.widthMode).toBe('flex')
     expect(getColumn(columns, 'fail_reason').meta?.widthMode).toBe('preferred')
-    expect(getColumn(columns, 'audit').meta?.widthMode).toBe('content')
+    expect(getColumn(columns, 'audit').meta?.widthMode).toBe('preferred')
   })
 
   test('keeps task statuses compact and gives details the remaining width', () => {
@@ -80,6 +103,6 @@ describe('usage log adaptive column widths', () => {
     expect(getColumn(columns, 'status').meta?.widthMode).toBe('content')
     expect(getColumn(columns, 'progress').meta?.widthMode).toBe('content')
     expect(getColumn(columns, 'fail_reason').meta?.widthMode).toBe('flex')
-    expect(getColumn(columns, 'audit').meta?.widthMode).toBe('content')
+    expect(getColumn(columns, 'audit').meta?.widthMode).toBe('preferred')
   })
 })

@@ -55,7 +55,6 @@ const logTypeRowTint: Record<number, string> = {
 // Warning tint for logs where a quota conversion saturated (admin-only marker).
 // Takes precedence over the per-type tint since it flags a billing anomaly.
 const quotaSaturationRowTint = 'bg-amber-50/60 dark:bg-amber-950/25'
-const COMMON_LOGS_INITIAL_COLUMN_VISIBILITY = { aggregated_text: false }
 const DEFAULT_COLUMN_VISIBILITY = {}
 
 function getColumnVisibilityStorageKey(
@@ -172,10 +171,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     data: logs as Record<string, unknown>[],
     columns: columns as ColumnDef<Record<string, unknown>>[],
     columnFilters,
-    initialColumnVisibility:
-      logCategory === 'common'
-        ? COMMON_LOGS_INITIAL_COLUMN_VISIBILITY
-        : DEFAULT_COLUMN_VISIBILITY,
+    initialColumnVisibility: DEFAULT_COLUMN_VISIBILITY,
     columnVisibilityStorageKey: getColumnVisibilityStorageKey(
       logCategory,
       isAdmin

@@ -62,7 +62,7 @@ import { LogCostDisplay } from '../log-cost-display'
 import { ModelBadge } from '../model-badge'
 import { TimingMetricsCell, StreamTpsCell } from '../timing-metrics-cell'
 import { useUsageLogsContext } from '../usage-logs-provider'
-import { createRequestAuditColumn } from './column-helpers'
+import { CommonLogAuditPreview } from './common-log-audit-preview'
 
 interface DetailSegment {
   text: string
@@ -484,10 +484,7 @@ export function useCommonLogsColumns(
             </TooltipProvider>
           )
         },
-        size: 160,
-        minSize: 130,
-        maxSize: 200,
-        meta: { widthMode: 'preferred' },
+        meta: { widthMode: 'content' },
       },
       {
         id: 'user',
@@ -542,10 +539,7 @@ export function useCommonLogsColumns(
             </button>
           )
         },
-        size: 140,
-        minSize: 120,
-        maxSize: 180,
-        meta: { widthMode: 'preferred' },
+        meta: { widthMode: 'content' },
       }
     )
   }
@@ -610,10 +604,7 @@ export function useCommonLogsColumns(
         </div>
       )
     },
-    size: 160,
-    minSize: 140,
-    maxSize: 220,
-    meta: { widthMode: 'preferred' },
+    meta: { widthMode: 'content' },
   })
   columns.push(
     {
@@ -753,52 +744,30 @@ export function useCommonLogsColumns(
     ...(canViewRequestAudit
       ? [
           {
-            accessorKey: 'aggregated_text',
-            header: t('Answer Content'),
-            cell: ({ row }) => {
+            id: 'audit',
+            accessorFn: (log) => log.aggregated_text,
+            header: t('Audit'),
+            cell: function CommonLogAuditCell({ row }) {
+              const { openAuditByRequestId } = useUsageLogsContext()
               const log = row.original
-              const rawText = row.getValue('aggregated_text')
-              const text = typeof rawText === 'string' ? rawText.trim() : ''
-
-              if (!text || (log.type !== 2 && log.type !== 5)) {
-                return (
-                  <span className='text-muted-foreground/40 text-xs'>—</span>
-                )
-              }
 
               return (
-                <Popover>
-                  <PopoverTrigger
-                    render={
-                      <button
-                        type='button'
-                        className='group w-full min-w-0 text-left text-xs'
-                        aria-label={t('Answer Content')}
-                        onClick={(event) => event.stopPropagation()}
-                      />
-                    }
-                  >
-                    <span className='text-muted-foreground group-hover:text-foreground line-clamp-2 leading-relaxed break-words transition-colors'>
-                      {text}
-                    </span>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align='start'
-                    className='w-[min(420px,calc(100vw-2rem))] p-0'
-                  >
-                    <div className='border-border/60 border-b px-3 py-2 text-xs font-medium'>
-                      {t('Answer Content')}
-                    </div>
-                    <div className='max-h-72 overflow-auto p-3 text-xs leading-relaxed break-words whitespace-pre-wrap'>
-                      {text}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <CommonLogAuditPreview
+                  answerText={log.aggregated_text}
+                  requestId={log.request_id}
+                  auditLabel={t('Audit')}
+                  unavailableLabel={t('This log has no request ID available')}
+                  onOpen={openAuditByRequestId}
+                />
               )
             },
-            size: 260,
+            enableHiding: true,
+            enableResizing: false,
+            enableSorting: false,
+            size: 220,
             minSize: 220,
-            meta: { label: t('Answer Content'), widthMode: 'flex' },
+            maxSize: 220,
+            meta: { label: t('Audit'), widthMode: 'preferred' },
           } satisfies ColumnDef<UsageLog>,
         ]
       : []),
@@ -869,16 +838,6 @@ export function useCommonLogsColumns(
       meta: { widthMode: 'flex' },
     }
   )
-
-  if (canViewRequestAudit) {
-    columns.push(
-      createRequestAuditColumn<UsageLog>({
-        headerLabel: t('Audit'),
-        unavailableLabel: t('This log has no request ID available'),
-        getRequestId: (log) => log.request_id,
-      })
-    )
-  }
 
   return columns
 }

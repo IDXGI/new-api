@@ -66,8 +66,9 @@ const auditJsonEditorTheme = EditorView.theme({
     fontFamily: 'var(--font-mono)',
     lineHeight: '1.25rem',
     minHeight: '12rem',
-    minWidth: 'max-content',
+    minWidth: '0',
     padding: '0.75rem 1rem 1rem 0.5rem',
+    width: '100%',
   },
   '.cm-focused': {
     outline: 'none',
@@ -81,6 +82,7 @@ const auditJsonEditorTheme = EditorView.theme({
     lineHeight: '1.25rem',
   },
   '.cm-line': {
+    overflowWrap: 'anywhere',
     padding: '0',
   },
   '.cm-lineNumbers .cm-gutterElement': {
@@ -92,7 +94,8 @@ const auditJsonEditorTheme = EditorView.theme({
     lineHeight: '1.25rem',
     maxHeight: '26.25rem',
     minHeight: '12rem',
-    overflow: 'auto',
+    overflowX: 'hidden',
+    overflowY: 'auto',
   },
   '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
     background:
@@ -167,6 +170,7 @@ export default function AuditJsonViewer(props: AuditJsonViewerProps) {
       doc: initialCodeRef.current,
       extensions: [
         lineNumbers(),
+        EditorView.lineWrapping,
         auditJsonEditorTheme,
         EditorState.readOnly.of(true),
         EditorView.editable.of(false),

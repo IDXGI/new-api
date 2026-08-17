@@ -1,5 +1,23 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { Check, Clipboard, Copy, FileJson, Link2, Route } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StatusBadge } from '@/components/status-badge'
@@ -19,6 +37,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -28,6 +47,8 @@ import { cn } from '@/lib/utils'
 import type { RequestAuditRecord, RequestAuditRelatedRecord } from '../../types'
 
 const RELATED_FILTER_ALL = 'all'
+
+const LazyAuditJsonViewer = lazy(() => import('./audit-json-viewer'))
 
 function getRelatedCategory(routeGroup?: string) {
   if (!routeGroup) return 'other'
@@ -149,7 +170,7 @@ function AuditSection({
   action?: React.ReactNode
 }) {
   return (
-    <section className='bg-muted/20 flex min-w-0 flex-col gap-3 rounded-lg border p-3'>
+    <section className='bg-muted/20 flex w-full max-w-full min-w-0 flex-col gap-3 rounded-lg border p-3'>
       <div className='flex min-w-0 items-start justify-between gap-3'>
         <div className='flex min-w-0 flex-col gap-1'>
           <h3 className='text-sm font-semibold'>{title}</h3>
@@ -188,9 +209,20 @@ function MetricCard({
 
 function JsonBlock({ value }: { value: unknown }) {
   return (
-    <pre className='bg-background max-h-[420px] overflow-auto rounded-lg border p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap'>
+    <pre className='bg-background max-h-[420px] w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-lg border p-3 font-mono text-xs leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap'>
       {stringifyValue(value) || '-'}
     </pre>
+  )
+}
+
+function JsonViewerFallback() {
+  return (
+    <div className='bg-background flex min-h-48 w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3'>
+      <Skeleton className='h-3 w-1/3' />
+      <Skeleton className='h-3 w-4/5' />
+      <Skeleton className='h-3 w-2/3' />
+      <Skeleton className='h-3 w-3/4' />
+    </div>
   )
 }
 
@@ -308,11 +340,19 @@ export function RequestAuditDialog({
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const [activeDetailTab, setActiveDetailTab] = useState('client-request')
   const [relatedFilter, setRelatedFilter] = useState(RELATED_FILTER_ALL)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useEffect(() => {
     setActiveDetailTab('client-request')
     setRelatedFilter(RELATED_FILTER_ALL)
+    setCopiedKey(null)
   }, [auditRecord?.request_id, open])
+
+  useEffect(() => {
+    if (copiedText == null) {
+      setCopiedKey(null)
+    }
+  }, [copiedText])
 
   const payloadsLoaded = auditRecord?.payloads_loaded !== false
   const aggregatedText = getAuditAggregatedText(auditRecord)
@@ -322,6 +362,22 @@ export function RequestAuditDialog({
   const upstreamResponsePayload = auditRecord?.upstream_response
   const clientResponsePayload =
     auditRecord?.client_response ?? auditRecord?.response
+  let activeDetailPayload = clientRequestPayload
+  let activeDetailTitle = t('Client Request')
+  switch (activeDetailTab) {
+    case 'upstream-request':
+      activeDetailPayload = upstreamRequestPayload
+      activeDetailTitle = t('Upstream Request')
+      break
+    case 'upstream-response':
+      activeDetailPayload = upstreamResponsePayload
+      activeDetailTitle = t('Upstream Response')
+      break
+    case 'client-response':
+      activeDetailPayload = clientResponsePayload
+      activeDetailTitle = t('Client Response')
+      break
+  }
   const relatedRecords = useMemo(
     () =>
       Array.isArray(auditRecord?.related_records)
@@ -352,21 +408,20 @@ export function RequestAuditDialog({
           (record) => getRelatedCategory(record.route_group) === relatedFilter
         )
 
-  const handleCopy = (label: string, value: unknown) => {
+  const handleCopy = (copyKey: string, value: unknown) => {
     const content = stringifyValue(value)
     if (!content) return
     void copyToClipboard(content).then((success) => {
       if (success) {
-        // Keep the toast quiet; the button state shows the feedback locally.
-        return label
+        setCopiedKey(copyKey)
       }
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[calc(100dvh-2rem)] min-w-0 overflow-hidden sm:max-w-5xl'>
-        <DialogHeader>
+      <DialogContent className='max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] min-w-0 overflow-hidden sm:max-w-5xl'>
+        <DialogHeader className='min-w-0'>
           <DialogTitle className='flex min-w-0 items-center gap-2'>
             <StatusBadge
               label={t('Audit')}
@@ -382,9 +437,9 @@ export function RequestAuditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className='max-h-[calc(100dvh-8rem)] pr-3'>
+        <ScrollArea className='max-h-[calc(100dvh-8rem)] w-full max-w-full min-w-0 overflow-x-hidden pr-3 [&_[data-slot=scroll-area-viewport]]:max-w-full [&_[data-slot=scroll-area-viewport]]:min-w-0 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden'>
           {auditRecord ? (
-            <div className='flex min-w-0 flex-col gap-4 pb-1'>
+            <div className='flex w-full max-w-full min-w-0 flex-col gap-4 overflow-x-hidden pb-1'>
               <AuditSection
                 title={t('Audit Overview')}
                 description={t('Route, status and key timing metrics')}
@@ -392,26 +447,42 @@ export function RequestAuditDialog({
                   <div className='flex flex-wrap justify-end gap-1.5'>
                     {(
                       [
-                        [t('Request ID'), auditRecord.request_id],
-                        [t('Client Request'), clientRequestPayload],
-                        [t('Upstream Request'), upstreamRequestPayload],
-                        [t('Upstream Response'), upstreamResponsePayload],
-                        [t('Client Response'), clientResponsePayload],
-                        [t('Trace'), auditRecord.trace],
-                      ] as Array<[string, unknown]>
-                    ).map(([label, value]) => (
+                        ['request-id', t('Request ID'), auditRecord.request_id],
+                        [
+                          'client-request',
+                          t('Client Request'),
+                          clientRequestPayload,
+                        ],
+                        [
+                          'upstream-request',
+                          t('Upstream Request'),
+                          upstreamRequestPayload,
+                        ],
+                        [
+                          'upstream-response',
+                          t('Upstream Response'),
+                          upstreamResponsePayload,
+                        ],
+                        [
+                          'client-response',
+                          t('Client Response'),
+                          clientResponsePayload,
+                        ],
+                        ['trace', t('Trace'), auditRecord.trace],
+                      ] as Array<[string, string, unknown]>
+                    ).map(([key, label, value]) => (
                       <Button
-                        key={label}
+                        key={key}
                         type='button'
                         variant='outline'
                         size='xs'
                         disabled={
-                          label !== t('Request ID') &&
+                          key !== 'request-id' &&
                           (!payloadsLoaded || payloadLoading)
                         }
-                        onClick={() => handleCopy(label as string, value)}
+                        onClick={() => handleCopy(key, value)}
                       >
-                        {copiedText === stringifyValue(value) ? (
+                        {copiedKey === key ? (
                           <Check data-icon='inline-start' />
                         ) : (
                           <Copy data-icon='inline-start' />
@@ -486,7 +557,7 @@ export function RequestAuditDialog({
                     </div>
                   </div>
 
-                  <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4'>
+                  <div className='grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4'>
                     <MetricCard
                       label={t('Total Latency')}
                       value={formatDurationMs(auditRecord.latency_ms)}
@@ -523,21 +594,25 @@ export function RequestAuditDialog({
                       variant='outline'
                       size='xs'
                       onClick={() =>
-                        handleCopy(t('Answer Content'), aggregatedText)
+                        handleCopy('answer-content', aggregatedText)
                       }
                     >
-                      <Copy data-icon='inline-start' />
+                      {copiedKey === 'answer-content' ? (
+                        <Check data-icon='inline-start' />
+                      ) : (
+                        <Copy data-icon='inline-start' />
+                      )}
                       {t('Copy')}
                     </Button>
                   }
                 >
-                  <div className='bg-background max-h-72 overflow-auto rounded-lg border p-3 text-sm leading-relaxed break-words whitespace-pre-wrap'>
+                  <div className='bg-background max-h-72 w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-lg border p-3 text-sm leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap'>
                     {aggregatedText}
                   </div>
                 </AuditSection>
               )}
 
-              <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+              <div className='grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2'>
                 <AuditSection
                   title={t('Request Info')}
                   description={t('Request, time and status fields')}
@@ -677,6 +752,7 @@ export function RequestAuditDialog({
                 }
               >
                 <Tabs
+                  className='max-w-full min-w-0'
                   value={activeDetailTab}
                   onValueChange={setActiveDetailTab}
                 >
@@ -698,30 +774,18 @@ export function RequestAuditDialog({
                       {t('Client Response')}
                     </TabsTrigger>
                   </TabsList>
-                  <TabsContent value='client-request'>
+                  <TabsContent
+                    className='max-w-full min-w-0'
+                    value={activeDetailTab}
+                  >
                     {payloadsLoaded ? (
-                      <JsonBlock value={clientRequestPayload} />
-                    ) : (
-                      <PayloadPlaceholder loading={payloadLoading} />
-                    )}
-                  </TabsContent>
-                  <TabsContent value='upstream-request'>
-                    {payloadsLoaded ? (
-                      <JsonBlock value={upstreamRequestPayload} />
-                    ) : (
-                      <PayloadPlaceholder loading={payloadLoading} />
-                    )}
-                  </TabsContent>
-                  <TabsContent value='upstream-response'>
-                    {payloadsLoaded ? (
-                      <JsonBlock value={upstreamResponsePayload} />
-                    ) : (
-                      <PayloadPlaceholder loading={payloadLoading} />
-                    )}
-                  </TabsContent>
-                  <TabsContent value='client-response'>
-                    {payloadsLoaded ? (
-                      <JsonBlock value={clientResponsePayload} />
+                      <Suspense fallback={<JsonViewerFallback />}>
+                        <LazyAuditJsonViewer
+                          ariaLabel={activeDetailTitle}
+                          payloadKey={`${auditRecord.request_id}:${auditRecord.updated_at ?? ''}:${activeDetailTab}`}
+                          value={activeDetailPayload}
+                        />
+                      </Suspense>
                     ) : (
                       <PayloadPlaceholder loading={payloadLoading} />
                     )}

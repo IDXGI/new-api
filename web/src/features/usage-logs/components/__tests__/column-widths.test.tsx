@@ -51,7 +51,7 @@ function getColumn(
 }
 
 describe('usage log adaptive column widths', () => {
-  test('uses details as the flexible common-log column', () => {
+  test('uses audit as the flexible common-log column', () => {
     const { result } = renderHook(() => useCommonLogsColumns(true, true))
     const columns = result.current as ColumnDef<unknown>[]
 
@@ -62,17 +62,33 @@ describe('usage log adaptive column widths', () => {
     expect(channelColumn.meta?.widthMode).toBe('content')
     expect(userColumn.meta?.widthMode).toBe('content')
     expect(tokenColumn.meta?.widthMode).toBe('content')
+    expect(channelColumn.maxSize).toBe(220)
+    expect(userColumn.maxSize).toBe(160)
+    expect(tokenColumn.maxSize).toBe(220)
     expect(channelColumn.minSize).toBeUndefined()
     expect(userColumn.minSize).toBeUndefined()
     expect(tokenColumn.minSize).toBeUndefined()
     expect(getColumn(columns, 'is_stream').meta?.widthMode).toBe('content')
+    const modelColumn = getColumn(columns, 'model_name')
+    const tokensColumn = getColumn(columns, 'prompt_tokens')
+    expect(modelColumn.meta?.widthMode).toBe('content')
+    expect(tokensColumn.meta?.widthMode).toBe('content')
+    expect(modelColumn.minSize).toBeUndefined()
+    expect(modelColumn.maxSize).toBe(220)
+    expect(tokensColumn.minSize).toBeUndefined()
+    expect(tokensColumn.maxSize).toBe(180)
     expect(getColumn(columns, 'quota').meta?.widthMode).toBe('content')
-    expect(getColumn(columns, 'content').meta?.widthMode).toBe('flex')
+    const detailsColumn = getColumn(columns, 'content')
+    expect(detailsColumn.meta?.widthMode).toBe('preferred')
+    expect(detailsColumn.size).toBe(180)
+    expect(detailsColumn.minSize).toBe(180)
+    expect(detailsColumn.maxSize).toBe(180)
+    expect(detailsColumn.enableResizing).toBe(false)
     const auditColumn = getColumn(columns, 'audit')
-    expect(auditColumn.meta?.widthMode).toBe('preferred')
+    expect(auditColumn.meta?.widthMode).toBe('flex')
     expect(auditColumn.size).toBe(180)
     expect(auditColumn.minSize).toBe(180)
-    expect(auditColumn.maxSize).toBe(180)
+    expect(auditColumn.maxSize).toBeUndefined()
     expect(auditColumn.enableResizing).toBe(false)
     expect(
       columns.some(

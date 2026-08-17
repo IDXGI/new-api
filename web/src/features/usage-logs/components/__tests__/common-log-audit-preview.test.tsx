@@ -42,7 +42,11 @@ describe('common log audit preview', () => {
     const previewText = preview.querySelector('span')
     expect(preview).not.toHaveTextContent(hiddenTail)
     expect(preview).toHaveAttribute('data-disable-active-scale')
-    expect(previewText).toHaveClass('line-clamp-2', 'whitespace-normal')
+    expect(previewText).toHaveClass(
+      'line-clamp-2',
+      'break-all',
+      'whitespace-normal'
+    )
     expect(preview.textContent).toMatch(/…$/)
     expect([...(preview.textContent?.slice(0, -1) ?? '')]).toHaveLength(160)
   })

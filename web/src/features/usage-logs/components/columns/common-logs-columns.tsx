@@ -484,6 +484,7 @@ export function useCommonLogsColumns(
             </TooltipProvider>
           )
         },
+        maxSize: 220,
         meta: { widthMode: 'content' },
       },
       {
@@ -539,6 +540,7 @@ export function useCommonLogsColumns(
             </button>
           )
         },
+        maxSize: 160,
         meta: { widthMode: 'content' },
       }
     )
@@ -604,6 +606,7 @@ export function useCommonLogsColumns(
         </div>
       )
     },
+    maxSize: 220,
     meta: { widthMode: 'content' },
   })
   columns.push(
@@ -617,18 +620,17 @@ export function useCommonLogsColumns(
         const modelInfo = formatModelName(log)
 
         return (
-          <div className='flex w-fit flex-col gap-0.5'>
+          <div className='flex w-fit max-w-full min-w-0 flex-col gap-0.5'>
             <ModelBadge
               modelName={modelInfo.name}
               actualModel={modelInfo.actualModel}
+              className='max-w-full overflow-hidden [&>span]:max-w-full [&>span]:min-w-0 [&>span>span:last-child]:truncate'
             />
           </div>
         )
       },
-      size: 180,
-      minSize: 140,
-      maxSize: 240,
-      meta: { mobileTitle: true, widthMode: 'preferred' },
+      maxSize: 220,
+      meta: { mobileTitle: true, widthMode: 'content' },
     },
     {
       accessorKey: 'is_stream',
@@ -652,6 +654,7 @@ export function useCommonLogsColumns(
           />
         )
       },
+      maxSize: 160,
       meta: { label: t('Stream'), widthMode: 'content' },
     },
     {
@@ -678,20 +681,20 @@ export function useCommonLogsColumns(
           : other?.cache_creation_tokens || 0
 
         return (
-          <div className='flex flex-col gap-0.5'>
-            <span className='font-mono text-xs font-medium tabular-nums'>
+          <div className='flex w-fit max-w-full min-w-0 flex-col gap-0.5 overflow-hidden'>
+            <span className='block max-w-full truncate font-mono text-xs font-medium tabular-nums'>
               {promptTokens.toLocaleString()} /{' '}
               {completionTokens.toLocaleString()}
             </span>
             {(cacheReadTokens > 0 || cacheWriteTokens > 0) && (
-              <div className='flex items-center gap-1 text-[11px]'>
+              <div className='flex max-w-full min-w-0 items-center gap-1 overflow-hidden text-[11px]'>
                 {cacheReadTokens > 0 && (
-                  <span className='text-muted-foreground/60'>
+                  <span className='text-muted-foreground/60 min-w-0 truncate'>
                     {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
                   </span>
                 )}
                 {cacheWriteTokens > 0 && (
-                  <span className='text-muted-foreground/60'>
+                  <span className='text-muted-foreground/60 min-w-0 truncate'>
                     ↑ {cacheWriteTokens.toLocaleString()}
                   </span>
                 )}
@@ -700,10 +703,8 @@ export function useCommonLogsColumns(
           </div>
         )
       },
-      size: 145,
-      minSize: 120,
-      maxSize: 190,
-      meta: { widthMode: 'preferred' },
+      maxSize: 180,
+      meta: { widthMode: 'content' },
     },
     {
       accessorKey: 'quota',
@@ -716,6 +717,7 @@ export function useCommonLogsColumns(
         const other = parseLogOther(log.other)
         return <LogCostDisplay quota={quota} other={other} />
       },
+      maxSize: 180,
       meta: { widthMode: 'content' },
     },
 
@@ -738,6 +740,7 @@ export function useCommonLogsColumns(
           />
         )
       },
+      maxSize: 200,
       meta: { widthMode: 'content' },
     },
 
@@ -769,8 +772,7 @@ export function useCommonLogsColumns(
             enableSorting: false,
             size: 180,
             minSize: 180,
-            maxSize: 180,
-            meta: { label: t('Audit'), widthMode: 'preferred' },
+            meta: { label: t('Audit'), widthMode: 'flex' },
           } satisfies ColumnDef<UsageLog>,
         ]
       : []),
@@ -836,9 +838,11 @@ export function useCommonLogsColumns(
           </>
         )
       },
+      enableResizing: false,
       size: 180,
       minSize: 180,
-      meta: { widthMode: 'flex' },
+      maxSize: 180,
+      meta: { widthMode: 'preferred' },
     }
   )
 

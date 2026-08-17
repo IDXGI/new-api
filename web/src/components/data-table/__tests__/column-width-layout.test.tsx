@@ -16,23 +16,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Column, Table } from '@tanstack/react-table'
+import type { Column, Row, Table } from '@tanstack/react-table'
 import { render } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 
 import { DataTableColgroup } from '../core/data-table-colgroup'
-import { getTableSizeStyle } from '../core/table-sizing'
+import { DataTableRow } from '../core/data-table-row'
+import {
+  getAdaptiveColumnMaxWidth,
+  getTableSizeStyle,
+} from '../core/table-sizing'
 
 type RowData = Record<string, unknown>
 
 function createColumn(
   id: string,
   size: number,
-  widthMode?: 'content' | 'preferred' | 'flex'
+  widthMode?: 'content' | 'preferred' | 'flex',
+  maxSize?: number
 ): Column<RowData, unknown> {
   return {
     id,
-    columnDef: { meta: { widthMode } },
+    columnDef: { maxSize, meta: { widthMode } },
     getSize: () => size,
   } as unknown as Column<RowData, unknown>
 }
@@ -46,6 +51,20 @@ function createTable(
     getState: () => ({ columnSizing }),
     options: { enableColumnResizing: false },
   } as unknown as Table<RowData>
+}
+
+function createRow(column: Column<RowData, unknown>): Row<RowData> {
+  const cell = {
+    id: `row-1_${column.id}`,
+    column,
+    getContext: () => ({}),
+  }
+
+  return {
+    id: 'row-1',
+    getIsSelected: () => false,
+    getVisibleCells: () => [cell],
+  } as unknown as Row<RowData>
 }
 
 describe('data table adaptive column widths', () => {
@@ -80,6 +99,37 @@ describe('data table adaptive column widths', () => {
     )
 
     expect(container.querySelector('col')).toHaveStyle({ width: '320px' })
+  })
+
+  test('caps content-sized cells while preserving their intrinsic width below the cap', () => {
+    const column = createColumn('model', 180, 'content', 220)
+    const { container } = render(
+      <table>
+        <tbody>
+          <DataTableRow row={createRow(column)} columnWidthMode='adaptive' />
+        </tbody>
+      </table>
+    )
+    const cell = container.querySelector('td')
+
+    expect(getAdaptiveColumnMaxWidth(column, 'adaptive')).toBe(220)
+    expect(cell).toHaveStyle({ maxWidth: '220px' })
+    expect(cell?.firstElementChild).toHaveStyle({ maxWidth: '220px' })
+  })
+
+  test('uses a shared safety cap for adaptive content columns without an explicit maximum', () => {
+    const column = createColumn('channel', 150, 'content')
+
+    expect(getAdaptiveColumnMaxWidth(column, 'adaptive')).toBe(240)
+    expect(getAdaptiveColumnMaxWidth(column, 'proportional')).toBeUndefined()
+  })
+
+  test('caps preferred columns at their resolved width and leaves flex columns unconstrained', () => {
+    const preferredColumn = createColumn('created_at', 180, 'preferred')
+    const flexColumn = createColumn('details', 200, 'flex')
+
+    expect(getAdaptiveColumnMaxWidth(preferredColumn, 'adaptive')).toBe(180)
+    expect(getAdaptiveColumnMaxWidth(flexColumn, 'adaptive')).toBeUndefined()
   })
 
   test('preserves proportional sizing as the shared table default', () => {

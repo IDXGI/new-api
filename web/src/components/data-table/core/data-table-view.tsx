@@ -338,6 +338,7 @@ function renderDefaultRow<TData>(
       className={cn(props.tableBodyRowClassName, props.getRowClassName?.(row))}
       getColumnClassName={getColumnClassName}
       cellRenderColumns={props.table.options.columns}
+      columnWidthMode={props.columnWidthMode}
     />
   )
 }

@@ -66,7 +66,7 @@ export function CommonLogAuditPreview(props: {
         if (canOpen) props.onOpen(requestId)
       }}
     >
-      <span className='text-muted-foreground hover:text-foreground line-clamp-2 [overflow-wrap:anywhere] whitespace-normal transition-colors'>
+      <span className='text-muted-foreground hover:text-foreground line-clamp-2 break-all whitespace-normal transition-colors'>
         {displayText}
       </span>
     </button>

@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils'
 
 import { DataTableColumnHeader } from './column-header'
 import { isContentSizedColumn } from './content-sized-columns'
+import { getAdaptiveColumnMaxWidth } from './table-sizing'
 import type {
   DataTableColumnClassName,
   DataTableColumnWidthMode,
@@ -265,7 +266,9 @@ function getHeaderSizeStyle<TData>(
 ) {
   if (columnWidthMode === 'adaptive') {
     const minWidth = header.column.columnDef.minSize
-    const maxWidth = header.column.columnDef.maxSize
+    const maxWidth =
+      getAdaptiveColumnMaxWidth(header.column, columnWidthMode) ??
+      header.column.columnDef.maxSize
 
     if (minWidth === undefined && maxWidth === undefined) {
       return undefined

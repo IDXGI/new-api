@@ -16,11 +16,44 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { Table as TanstackTable } from '@tanstack/react-table'
+import type { Column, Table as TanstackTable } from '@tanstack/react-table'
 import type * as React from 'react'
 
 import { isContentSizedColumn } from './content-sized-columns'
 import type { DataTableColumnWidthMode } from './types'
+
+const DEFAULT_ADAPTIVE_CONTENT_MAX_WIDTH = 240
+
+export function getAdaptiveColumnMaxWidth<TData>(
+  column: Column<TData, unknown>,
+  widthMode: DataTableColumnWidthMode
+): number | undefined {
+  if (widthMode !== 'adaptive') {
+    return undefined
+  }
+
+  const configuredMaxWidth = column.columnDef.maxSize
+  if (
+    typeof configuredMaxWidth === 'number' &&
+    Number.isFinite(configuredMaxWidth) &&
+    configuredMaxWidth > 0
+  ) {
+    return configuredMaxWidth
+  }
+
+  const columnWidthMode = column.columnDef.meta?.widthMode ?? 'preferred'
+  if (columnWidthMode === 'flex') {
+    return undefined
+  }
+  if (columnWidthMode === 'content' || isContentSizedColumn(column.id)) {
+    return DEFAULT_ADAPTIVE_CONTENT_MAX_WIDTH
+  }
+
+  const preferredWidth = column.getSize()
+  return Number.isFinite(preferredWidth) && preferredWidth > 0
+    ? preferredWidth
+    : undefined
+}
 
 export function getTableSizeStyle<TData>(
   table: TanstackTable<TData>,

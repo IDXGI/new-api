@@ -27,14 +27,19 @@ import * as React from 'react'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
+import { getAdaptiveColumnMaxWidth } from './table-sizing'
 import { TruncatedCell } from './truncated-cell'
-import type { DataTableColumnClassName } from './types'
+import type {
+  DataTableColumnClassName,
+  DataTableColumnWidthMode,
+} from './types'
 
 type DataTableRowProps<TData> = {
   row: Row<TData>
   className?: string
   getColumnClassName?: DataTableColumnClassName
   cellRenderColumns?: TanstackTable<TData>['options']['columns']
+  columnWidthMode?: DataTableColumnWidthMode
 } & Omit<React.ComponentProps<typeof TableRow>, 'children'>
 
 type DataTableRowInnerProps<TData> = DataTableRowProps<TData> & {
@@ -53,6 +58,7 @@ function DataTableRowInner<TData>({
   className,
   getColumnClassName,
   cellRenderColumns,
+  columnWidthMode = 'proportional',
   visibleColumnIds,
   ...rowProps
 }: DataTableRowInnerProps<TData>) {
@@ -69,18 +75,37 @@ function DataTableRowInner<TData>({
     >
       {row.getVisibleCells().map((cell) => {
         const renderedCell = renderCellContent(cell)
+        const maxContentWidth = getAdaptiveColumnMaxWidth(
+          cell.column,
+          columnWidthMode
+        )
 
         return (
           <TableCell
             key={cell.id}
             data-column-id={cell.column.id}
+            style={
+              maxContentWidth === undefined
+                ? undefined
+                : { maxWidth: maxContentWidth }
+            }
             className={cn(
               'max-w-full min-w-0',
-              renderedCell.isPrimitive && 'overflow-hidden',
+              (renderedCell.isPrimitive || maxContentWidth !== undefined) &&
+                'overflow-hidden',
               getColumnClassName?.(cell.column.id, 'cell')
             )}
           >
-            {renderedCell.content}
+            {maxContentWidth === undefined ? (
+              renderedCell.content
+            ) : (
+              <div
+                className='w-fit max-w-full min-w-0 overflow-hidden'
+                style={{ maxWidth: maxContentWidth }}
+              >
+                {renderedCell.content}
+              </div>
+            )}
           </TableCell>
         )
       })}
@@ -103,6 +128,7 @@ const MemoizedDataTableRow = React.memo(DataTableRowInner, (prev, next) => {
     prev.className === next.className &&
     prev.isSelected === next.isSelected &&
     prev.visibleColumnIds === next.visibleColumnIds &&
+    prev.columnWidthMode === next.columnWidthMode &&
     prev.getColumnClassName === next.getColumnClassName &&
     prev.cellRenderColumns === next.cellRenderColumns
   )

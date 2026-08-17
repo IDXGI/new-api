@@ -238,6 +238,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
             row={row}
             className={cn('transition-colors', tintClass)}
             getColumnClassName={() => (isCommon ? 'py-2' : 'py-3.5')}
+            columnWidthMode='adaptive'
           />
         )
       }}

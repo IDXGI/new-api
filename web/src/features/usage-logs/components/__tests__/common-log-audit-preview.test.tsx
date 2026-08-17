@@ -30,6 +30,7 @@ describe('common log audit preview', () => {
     render(
       <CommonLogAuditPreview
         answerText={answerText}
+        hasAudit
         requestId='req-long-answer'
         auditLabel='Audit'
         unavailableLabel='Unavailable'
@@ -38,7 +39,10 @@ describe('common log audit preview', () => {
     )
 
     const preview = screen.getByRole('button', { name: 'Audit' })
+    const previewText = preview.querySelector('span')
     expect(preview).not.toHaveTextContent(hiddenTail)
+    expect(preview).toHaveAttribute('data-disable-active-scale')
+    expect(previewText).toHaveClass('line-clamp-2', 'whitespace-normal')
     expect(preview.textContent).toMatch(/…$/)
     expect([...(preview.textContent?.slice(0, -1) ?? '')]).toHaveLength(160)
   })
@@ -50,6 +54,7 @@ describe('common log audit preview', () => {
     render(
       <CommonLogAuditPreview
         answerText='Answer preview'
+        hasAudit
         requestId='req-click'
         auditLabel='Audit'
         unavailableLabel='Unavailable'
@@ -62,13 +67,14 @@ describe('common log audit preview', () => {
     expect(onOpen).toHaveBeenCalledWith('req-click')
   })
 
-  test('keeps audit available when a request has no answer preview', async () => {
+  test('does not present a missing audit record as an available audit', async () => {
     const user = userEvent.setup()
     const onOpen = vi.fn()
 
     render(
       <CommonLogAuditPreview
         answerText=''
+        hasAudit={false}
         requestId='req-no-answer'
         auditLabel='Audit'
         unavailableLabel='Unavailable'
@@ -77,9 +83,10 @@ describe('common log audit preview', () => {
     )
 
     const preview = screen.getByRole('button', { name: 'Audit' })
-    expect(preview).toHaveTextContent('Audit')
+    expect(preview).toHaveTextContent('—')
+    expect(preview).toBeDisabled()
 
     await user.click(preview)
-    expect(onOpen).toHaveBeenCalledWith('req-no-answer')
+    expect(onOpen).not.toHaveBeenCalled()
   })
 })

@@ -79,6 +79,7 @@ type Log struct {
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
 	AggregatedText    string `json:"aggregated_text,omitempty" gorm:"-"`
+	HasRequestAudit   bool   `json:"has_request_audit,omitempty" gorm:"-"`
 }
 
 // don't use iota, avoid change log type value
@@ -489,7 +490,9 @@ func hydrateLogsAggregatedText(logs []*Log) {
 		if logs[i] == nil || logs[i].RequestId == "" {
 			continue
 		}
-		logs[i].AggregatedText = aggregatedTextMap[logs[i].RequestId]
+		aggregatedText, hasRequestAudit := aggregatedTextMap[logs[i].RequestId]
+		logs[i].AggregatedText = aggregatedText
+		logs[i].HasRequestAudit = hasRequestAudit
 	}
 }
 

@@ -280,9 +280,6 @@ func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, err
 
 	for _, audit := range audits {
 		aggregatedText := extractRequestAuditAggregatedTextPreview(audit.ResponsePayload)
-		if aggregatedText == "" {
-			continue
-		}
 		result[audit.RequestID] = aggregatedText
 	}
 	return result, nil

@@ -754,9 +754,12 @@ export function useCommonLogsColumns(
               return (
                 <CommonLogAuditPreview
                   answerText={log.aggregated_text}
+                  hasAudit={log.has_request_audit}
                   requestId={log.request_id}
                   auditLabel={t('Audit')}
-                  unavailableLabel={t('This log has no request ID available')}
+                  unavailableLabel={t(
+                    'No request audit record is available for this entry.'
+                  )}
                   onOpen={openAuditByRequestId}
                 />
               )
@@ -764,9 +767,9 @@ export function useCommonLogsColumns(
             enableHiding: true,
             enableResizing: false,
             enableSorting: false,
-            size: 220,
-            minSize: 220,
-            maxSize: 220,
+            size: 160,
+            minSize: 160,
+            maxSize: 160,
             meta: { label: t('Audit'), widthMode: 'preferred' },
           } satisfies ColumnDef<UsageLog>,
         ]

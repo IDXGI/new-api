@@ -75,13 +75,16 @@ describe('request audit payload tabs', () => {
       screen.getByRole('tab', { name: 'Client Response' })
     ).toBeInTheDocument()
     expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(
+      await screen.findByRole('region', { name: 'Trace' })
+    ).toHaveTextContent('request_conversion')
 
     await user.click(screen.getByRole('tab', { name: 'Upstream Request' }))
     expect(
       await screen.findByRole('region', { name: 'Upstream Request' })
     ).toHaveTextContent('upstream-request-model')
     expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
-      1
+      2
     )
 
     await user.click(screen.getByRole('tab', { name: 'Client Response' }))
@@ -89,7 +92,7 @@ describe('request audit payload tabs', () => {
       await screen.findByRole('region', { name: 'Client Response' })
     ).toHaveTextContent('client-response-model')
     expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
-      1
+      2
     )
   })
 })

@@ -294,6 +294,57 @@ func TestResolveChannelTestUserIDUsesRequestUser(t *testing.T) {
 	require.Equal(t, 2, userID)
 }
 
+func TestBeginChannelTestRequestAuditLinksGeneratedConsumeLog(t *testing.T) {
+	db := setupModelListControllerTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Log{}, &model.RequestAudit{}))
+	withSelfUseModeEnabled(t)
+	originalLogConsumeEnabled := common.LogConsumeEnabled
+	common.LogConsumeEnabled = true
+	t.Cleanup(func() {
+		common.LogConsumeEnabled = originalLogConsumeEnabled
+	})
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	ctx.Set("id", 1)
+	ctx.Set("username", "channel-test-user")
+	request := &dto.GeneralOpenAIRequest{Model: "client-test-model"}
+
+	finishAudit, err := beginChannelTestRequestAudit(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, service.GetRequestAuditState(ctx))
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"choices": []any{
+			map[string]any{
+				"message": map[string]any{"content": "channel test answer"},
+			},
+		},
+	})
+	model.RecordConsumeLog(ctx, 1, model.RecordConsumeLogParams{
+		ChannelId: 0,
+		ModelName: "client-test-model",
+		TokenName: "模型测试",
+		Content:   "模型测试",
+	})
+	require.NoError(t, finishAudit())
+
+	var logRecord model.Log
+	require.NoError(t, db.Order("id desc").First(&logRecord).Error)
+	var auditRecord model.RequestAudit
+	require.NoError(t, db.Where("request_id = ?", logRecord.RequestId).First(&auditRecord).Error)
+	require.Equal(t, "channel_test", auditRecord.RouteGroup)
+	require.Equal(t, "channel test answer", model.ExtractAggregatedTextFromResponsePayload(string(auditRecord.ResponsePayload)))
+	logs, total, err := model.GetAllLogs(model.LogTypeConsume, 0, 0, "", "", "", 0, 10, 0, "", "", "")
+	require.NoError(t, err)
+	require.Equal(t, int64(1), total)
+	require.Len(t, logs, 1)
+	require.True(t, logs[0].HasRequestAudit)
+	require.Equal(t, "channel test answer", logs[0].AggregatedText)
+}
+
 func TestSelectChannelsForAutomaticTestPassiveRecoveryOnlyUsesAutoDisabled(t *testing.T) {
 	channels := []*model.Channel{
 		{Id: 1, Status: common.ChannelStatusEnabled},

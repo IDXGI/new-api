@@ -70,9 +70,9 @@ describe('usage log adaptive column widths', () => {
     expect(getColumn(columns, 'content').meta?.widthMode).toBe('flex')
     const auditColumn = getColumn(columns, 'audit')
     expect(auditColumn.meta?.widthMode).toBe('preferred')
-    expect(auditColumn.size).toBe(220)
-    expect(auditColumn.minSize).toBe(220)
-    expect(auditColumn.maxSize).toBe(220)
+    expect(auditColumn.size).toBe(160)
+    expect(auditColumn.minSize).toBe(160)
+    expect(auditColumn.maxSize).toBe(160)
     expect(auditColumn.enableResizing).toBe(false)
     expect(
       columns.some(

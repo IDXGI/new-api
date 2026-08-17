@@ -18,21 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { json } from '@codemirror/lang-json'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { Compartment, EditorState, type Extension } from '@codemirror/state'
+import { EditorState } from '@codemirror/state'
 import { EditorView, lineNumbers } from '@codemirror/view'
 import { tags as highlightTags } from '@lezer/highlight'
-import { Braces } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-
-export const AUDIT_JSON_AUTO_HIGHLIGHT_LIMIT = 1 << 20
+import { useEffect, useMemo, useRef } from 'react'
 
 type AuditJsonViewerProps = {
   ariaLabel: string
-  payloadKey: string
   value: unknown
 }
 
@@ -74,7 +66,7 @@ const auditJsonEditorTheme = EditorView.theme({
     outline: 'none',
   },
   '.cm-gutters': {
-    background: 'var(--muted)',
+    background: 'var(--background)',
     borderRight: '1px solid var(--border)',
     color: 'var(--muted-foreground)',
     fontFamily: 'var(--font-mono)',
@@ -86,8 +78,9 @@ const auditJsonEditorTheme = EditorView.theme({
     padding: '0',
   },
   '.cm-lineNumbers .cm-gutterElement': {
-    minWidth: '2.75rem',
-    padding: '0 0.75rem 0 0.5rem',
+    minWidth: '2rem',
+    padding: '0 0.375rem 0 0.25rem',
+    textAlign: 'right',
   },
   '.cm-scroller': {
     fontFamily: 'var(--font-mono)',
@@ -136,29 +129,13 @@ function stringifyJsonValue(value: unknown) {
   }
 }
 
-function syntaxExtensions(enabled: boolean): Extension {
-  if (!enabled) {
-    return []
-  }
-  return [json(), syntaxHighlighting(auditJsonHighlightStyle)]
-}
-
 export default function AuditJsonViewer(props: AuditJsonViewerProps) {
-  const { t } = useTranslation()
   const editorHostRef = useRef<HTMLDivElement>(null)
   const editorViewRef = useRef<EditorView | null>(null)
-  const languageCompartmentRef = useRef(new Compartment())
   const code = useMemo(() => stringifyJsonValue(props.value), [props.value])
   const initialCodeRef = useRef(code)
   const initialAriaLabelRef = useRef(props.ariaLabel)
   const appliedCodeRef = useRef(code)
-  const [highlightedLargePayloadKey, setHighlightedLargePayloadKey] = useState<
-    string | null
-  >(null)
-  const isLargePayload = code.length > AUDIT_JSON_AUTO_HIGHLIGHT_LIMIT
-  const highlightEnabled =
-    !isLargePayload || highlightedLargePayloadKey === props.payloadKey
-  const appliedHighlightRef = useRef(highlightEnabled)
 
   useEffect(() => {
     const host = editorHostRef.current
@@ -172,11 +149,10 @@ export default function AuditJsonViewer(props: AuditJsonViewerProps) {
         lineNumbers(),
         EditorView.lineWrapping,
         auditJsonEditorTheme,
+        json(),
+        syntaxHighlighting(auditJsonHighlightStyle),
         EditorState.readOnly.of(true),
         EditorView.editable.of(false),
-        languageCompartmentRef.current.of(
-          syntaxExtensions(appliedHighlightRef.current)
-        ),
       ],
       parent: host,
     })
@@ -189,19 +165,6 @@ export default function AuditJsonViewer(props: AuditJsonViewerProps) {
       editorViewRef.current = null
     }
   }, [])
-
-  useEffect(() => {
-    const view = editorViewRef.current
-    if (!view || appliedHighlightRef.current === highlightEnabled) {
-      return
-    }
-    view.dispatch({
-      effects: languageCompartmentRef.current.reconfigure(
-        syntaxExtensions(highlightEnabled)
-      ),
-    })
-    appliedHighlightRef.current = highlightEnabled
-  }, [highlightEnabled])
 
   useEffect(() => {
     const view = editorViewRef.current
@@ -228,44 +191,10 @@ export default function AuditJsonViewer(props: AuditJsonViewerProps) {
   return (
     <div
       aria-label={props.ariaLabel}
-      className='flex w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden'
-      data-highlight-enabled={highlightEnabled ? 'true' : 'false'}
-      data-large-payload={isLargePayload ? 'true' : 'false'}
+      className='w-full max-w-full min-w-0 overflow-hidden'
+      data-highlight-enabled='true'
       role='region'
     >
-      {isLargePayload && !highlightEnabled && (
-        <Alert>
-          <Braces />
-          <AlertTitle>{t('Large JSON payload')}</AlertTitle>
-          <AlertDescription>
-            {t(
-              'Syntax highlighting is disabled by default to keep large payloads responsive.'
-            )}
-          </AlertDescription>
-          <div className='col-start-2 mt-2'>
-            <Button
-              size='xs'
-              type='button'
-              variant='outline'
-              onClick={() => setHighlightedLargePayloadKey(props.payloadKey)}
-            >
-              {t('Enable syntax highlighting')}
-            </Button>
-          </div>
-        </Alert>
-      )}
-      {isLargePayload && highlightEnabled && (
-        <div className='flex justify-end'>
-          <Button
-            size='xs'
-            type='button'
-            variant='ghost'
-            onClick={() => setHighlightedLargePayloadKey(null)}
-          >
-            {t('Disable syntax highlighting')}
-          </Button>
-        </div>
-      )}
       <div
         className='bg-background w-full max-w-full min-w-0 overflow-hidden rounded-lg border'
         ref={editorHostRef}

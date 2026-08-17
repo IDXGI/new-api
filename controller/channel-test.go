@@ -69,7 +69,31 @@ func resolveChannelTestUserID(c *gin.Context) (int, error) {
 	return rootUser.Id, nil
 }
 
-func testChannel(ctx context.Context, channel *model.Channel, testUserID int, testModel string, endpointType string, isStream bool) testResult {
+func beginChannelTestRequestAudit(c *gin.Context, request dto.Request) (func() error, error) {
+	finish := func() error { return nil }
+	if c == nil || c.Request == nil || !service.ShouldEnableRequestAudit() {
+		return finish, nil
+	}
+
+	body, err := common.Marshal(request)
+	if err != nil {
+		return finish, err
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	c.Request.ContentLength = int64(len(body))
+	c.Request.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(body)), nil
+	}
+
+	if service.BeginRequestAudit(c, "channel_test") == nil {
+		return finish, nil
+	}
+	return func() error {
+		return service.FinishRequestAudit(c)
+	}, nil
+}
+
+func testChannel(ctx context.Context, channel *model.Channel, testUserID int, testModel string, endpointType string, isStream bool, captureAudit bool) testResult {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -227,6 +251,21 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 	}
 
 	request := buildTestRequest(testModel, endpointType, channel, isStream)
+	if captureAudit {
+		finishAudit, auditErr := beginChannelTestRequestAudit(c, request)
+		if auditErr != nil {
+			return testResult{
+				context:     c,
+				localErr:    auditErr,
+				newAPIError: types.NewError(auditErr, types.ErrorCodeJsonMarshalFailed),
+			}
+		}
+		defer func() {
+			if finishErr := finishAudit(); finishErr != nil {
+				common.SysError("channel test audit persist failed: " + finishErr.Error())
+			}
+		}()
+	}
 
 	info, err := relaycommon.GenRelayInfo(c, relayFormat, request, nil)
 
@@ -240,6 +279,7 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 
 	info.IsChannelTest = true
 	info.InitChannelMeta(c)
+	service.CaptureRequestAuditRelayInfo(c, info)
 
 	err = attachTestBillingRequestInput(info, request)
 	if err != nil {
@@ -471,8 +511,8 @@ func testChannel(ctx context.Context, channel *model.Channel, testUserID int, te
 			newAPIError: types.NewOpenAIError(usageErr, types.ErrorCodeBadResponseBody, http.StatusInternalServerError),
 		}
 	}
-	result := w.Result()
-	respBody, err := readTestResponseBody(result.Body, isStream)
+	recordedResponse := w.Result()
+	respBody, err := readTestResponseBody(recordedResponse.Body, isStream)
 	if err != nil {
 		return testResult{
 			context:     c,
@@ -865,7 +905,7 @@ func TestChannel(c *gin.Context) {
 	if c.Request != nil {
 		requestCtx = c.Request.Context()
 	}
-	result := testChannel(requestCtx, channel, testUserID, testModel, endpointType, isStream)
+	result := testChannel(requestCtx, channel, testUserID, testModel, endpointType, isStream, true)
 	if result.localErr != nil {
 		resp := gin.H{
 			"success": false,
@@ -932,7 +972,7 @@ func performChannelTests(ctx context.Context, channels []*model.Channel, testUse
 		}
 		isChannelEnabled := channel.Status == common.ChannelStatusEnabled
 		tik := time.Now()
-		result := testChannel(ctx, channel, testUserID, "", "", shouldUseStreamForAutomaticChannelTest(channel))
+		result := testChannel(ctx, channel, testUserID, "", "", shouldUseStreamForAutomaticChannelTest(channel), false)
 		tok := time.Now()
 		milliseconds := tok.Sub(tik).Milliseconds()
 		if ctx != nil && ctx.Err() != nil {

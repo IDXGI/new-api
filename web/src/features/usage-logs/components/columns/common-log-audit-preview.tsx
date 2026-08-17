@@ -42,23 +42,22 @@ function getAuditAnswerPreview(answerText: string | undefined): string {
 
 export function CommonLogAuditPreview(props: {
   answerText?: string
+  hasAudit?: boolean
   requestId?: string
   auditLabel: string
   unavailableLabel: string
   onOpen: (requestId: string) => void
 }) {
   const requestId = props.requestId?.trim() ?? ''
-  const canOpen = requestId !== ''
   const answerPreview = getAuditAnswerPreview(props.answerText)
-  let displayText = '—'
-  if (canOpen) {
-    displayText = answerPreview || props.auditLabel
-  }
+  const canOpen = requestId !== '' && (props.hasAudit || answerPreview !== '')
+  const displayText = answerPreview || '—'
 
   return (
     <button
       type='button'
-      className='focus-visible:ring-ring block w-full min-w-0 rounded-sm text-left text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default'
+      className='focus-visible:ring-ring block w-full min-w-0 border-0 bg-transparent p-0 text-left text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default'
+      data-disable-active-scale
       aria-label={props.auditLabel}
       title={canOpen ? props.auditLabel : props.unavailableLabel}
       disabled={!canOpen}
@@ -67,7 +66,7 @@ export function CommonLogAuditPreview(props: {
         if (canOpen) props.onOpen(requestId)
       }}
     >
-      <span className='text-muted-foreground hover:text-foreground line-clamp-2 break-all transition-colors'>
+      <span className='text-muted-foreground hover:text-foreground line-clamp-2 [overflow-wrap:anywhere] whitespace-normal transition-colors'>
         {displayText}
       </span>
     </button>

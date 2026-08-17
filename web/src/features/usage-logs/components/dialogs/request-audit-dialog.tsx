@@ -207,14 +207,6 @@ function MetricCard({
   )
 }
 
-function JsonBlock({ value }: { value: unknown }) {
-  return (
-    <pre className='bg-background max-h-[420px] w-full max-w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-lg border p-3 font-mono text-xs leading-relaxed [overflow-wrap:anywhere] whitespace-pre-wrap'>
-      {stringifyValue(value) || '-'}
-    </pre>
-  )
-}
-
 function JsonViewerFallback() {
   return (
     <div className='bg-background flex min-h-48 w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3'>
@@ -782,7 +774,6 @@ export function RequestAuditDialog({
                       <Suspense fallback={<JsonViewerFallback />}>
                         <LazyAuditJsonViewer
                           ariaLabel={activeDetailTitle}
-                          payloadKey={`${auditRecord.request_id}:${auditRecord.updated_at ?? ''}:${activeDetailTab}`}
                           value={activeDetailPayload}
                         />
                       </Suspense>
@@ -795,7 +786,12 @@ export function RequestAuditDialog({
 
               <AuditSection title={t('Trace')}>
                 {payloadsLoaded ? (
-                  <JsonBlock value={auditRecord.trace} />
+                  <Suspense fallback={<JsonViewerFallback />}>
+                    <LazyAuditJsonViewer
+                      ariaLabel={t('Trace')}
+                      value={auditRecord.trace}
+                    />
+                  </Suspense>
                 ) : (
                   <PayloadPlaceholder loading={payloadLoading} />
                 )}

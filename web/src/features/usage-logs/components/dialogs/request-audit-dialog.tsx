@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Clipboard, Copy, FileJson, Link2, Route } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -44,9 +45,21 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-import type { RequestAuditRecord, RequestAuditRelatedRecord } from '../../types'
+import { getRequestAuditPayloadByRequestId } from '../../api'
+import type {
+  RequestAuditPayloadSection,
+  RequestAuditRecord,
+  RequestAuditRelatedRecord,
+} from '../../types'
 
 const RELATED_FILTER_ALL = 'all'
+
+type RequestAuditPayloadTab =
+  | 'trace'
+  | 'client-request'
+  | 'upstream-request'
+  | 'upstream-response'
+  | 'client-response'
 
 const LazyAuditJsonViewer = lazy(() => import('./audit-json-viewer'))
 
@@ -107,6 +120,44 @@ function getAuditAggregatedText(auditRecord: RequestAuditRecord | null) {
     if (typeof aggregatedText === 'string') return aggregatedText.trim()
   }
   return ''
+}
+
+function getPayloadSection(
+  tab: RequestAuditPayloadTab
+): RequestAuditPayloadSection {
+  return tab.replaceAll('-', '_') as RequestAuditPayloadSection
+}
+
+function getPayloadValue(
+  auditRecord: RequestAuditRecord | undefined,
+  section: RequestAuditPayloadSection
+) {
+  if (!auditRecord) return undefined
+  switch (section) {
+    case 'client_request':
+      return auditRecord.client_request ?? auditRecord.request
+    case 'upstream_request':
+      return auditRecord.upstream_request
+    case 'upstream_response':
+      return auditRecord.upstream_response
+    case 'client_response':
+      return auditRecord.client_response ?? auditRecord.response
+    case 'trace':
+      return auditRecord.trace
+    default:
+      return undefined
+  }
+}
+
+async function fetchRequestAuditSection(
+  requestId: string,
+  section: RequestAuditPayloadSection
+) {
+  const result = await getRequestAuditPayloadByRequestId(requestId, section)
+  if (!result.success || !result.data) {
+    throw new Error(result.message || 'Request audit payload unavailable')
+  }
+  return result.data
 }
 
 function getModelMappingValue(auditRecord: RequestAuditRecord, t: TFunction) {
@@ -315,7 +366,6 @@ interface RequestAuditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   loading: boolean
-  payloadLoading: boolean
   auditRecord: RequestAuditRecord | null
   onOpenRequestAudit: (requestId: string) => void
 }
@@ -324,13 +374,14 @@ export function RequestAuditDialog({
   open,
   onOpenChange,
   loading,
-  payloadLoading,
   auditRecord,
   onOpenRequestAudit,
 }: RequestAuditDialogProps) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const [activeDetailTab, setActiveDetailTab] = useState('trace')
+  const [activeDetailTab, setActiveDetailTab] =
+    useState<RequestAuditPayloadTab>('trace')
   const [relatedFilter, setRelatedFilter] = useState(RELATED_FILTER_ALL)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
@@ -346,31 +397,40 @@ export function RequestAuditDialog({
     }
   }, [copiedText])
 
-  const payloadsLoaded = auditRecord?.payloads_loaded !== false
-  const aggregatedText = getAuditAggregatedText(auditRecord)
-  const clientRequestPayload =
-    auditRecord?.client_request ?? auditRecord?.request
-  const upstreamRequestPayload = auditRecord?.upstream_request
-  const upstreamResponsePayload = auditRecord?.upstream_response
-  const clientResponsePayload =
-    auditRecord?.client_response ?? auditRecord?.response
-  let activeDetailPayload = auditRecord?.trace
+  const requestId = auditRecord?.request_id?.trim() ?? ''
+  const activePayloadSection = getPayloadSection(activeDetailTab)
+  const activePayloadQuery = useQuery({
+    queryKey: ['request-audit', 'payload', requestId, activePayloadSection],
+    queryFn: () => fetchRequestAuditSection(requestId, activePayloadSection),
+    enabled: open && requestId !== '',
+    retry: false,
+    staleTime: Infinity,
+  })
+  const cachedClientResponse = queryClient.getQueryData<RequestAuditRecord>([
+    'request-audit',
+    'payload',
+    requestId,
+    'client_response',
+  ])
+  const aggregatedText = getAuditAggregatedText(
+    cachedClientResponse ?? auditRecord
+  )
+  const activeDetailPayload = getPayloadValue(
+    activePayloadQuery.data,
+    activePayloadSection
+  )
   let activeDetailTitle = t('Trace')
   switch (activeDetailTab) {
     case 'client-request':
-      activeDetailPayload = clientRequestPayload
       activeDetailTitle = t('Client Request')
       break
     case 'upstream-request':
-      activeDetailPayload = upstreamRequestPayload
       activeDetailTitle = t('Upstream Request')
       break
     case 'upstream-response':
-      activeDetailPayload = upstreamResponsePayload
       activeDetailTitle = t('Upstream Response')
       break
     case 'client-response':
-      activeDetailPayload = clientResponsePayload
       activeDetailTitle = t('Client Response')
       break
   }
@@ -441,51 +501,37 @@ export function RequestAuditDialog({
                 description={t('Route, status and key timing metrics')}
                 action={
                   <div className='flex flex-wrap justify-end gap-1.5'>
-                    {(
-                      [
-                        ['request-id', t('Request ID'), auditRecord.request_id],
-                        [
-                          'client-request',
-                          t('Client Request'),
-                          clientRequestPayload,
-                        ],
-                        [
-                          'upstream-request',
-                          t('Upstream Request'),
-                          upstreamRequestPayload,
-                        ],
-                        [
-                          'upstream-response',
-                          t('Upstream Response'),
-                          upstreamResponsePayload,
-                        ],
-                        [
-                          'client-response',
-                          t('Client Response'),
-                          clientResponsePayload,
-                        ],
-                        ['trace', t('Trace'), auditRecord.trace],
-                      ] as Array<[string, string, unknown]>
-                    ).map(([key, label, value]) => (
-                      <Button
-                        key={key}
-                        type='button'
-                        variant='outline'
-                        size='xs'
-                        disabled={
-                          key !== 'request-id' &&
-                          (!payloadsLoaded || payloadLoading)
-                        }
-                        onClick={() => handleCopy(key, value)}
-                      >
-                        {copiedKey === key ? (
-                          <Check data-icon='inline-start' />
-                        ) : (
-                          <Copy data-icon='inline-start' />
-                        )}
-                        {label}
-                      </Button>
-                    ))}
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='xs'
+                      onClick={() =>
+                        handleCopy('request-id', auditRecord.request_id)
+                      }
+                    >
+                      {copiedKey === 'request-id' ? (
+                        <Check data-icon='inline-start' />
+                      ) : (
+                        <Copy data-icon='inline-start' />
+                      )}
+                      {t('Request ID')}
+                    </Button>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='xs'
+                      disabled={activePayloadQuery.data === undefined}
+                      onClick={() =>
+                        handleCopy(activePayloadSection, activeDetailPayload)
+                      }
+                    >
+                      {copiedKey === activePayloadSection ? (
+                        <Check data-icon='inline-start' />
+                      ) : (
+                        <Copy data-icon='inline-start' />
+                      )}
+                      {activeDetailTitle}
+                    </Button>
                   </div>
                 }
               >
@@ -728,15 +774,11 @@ export function RequestAuditDialog({
 
               <AuditSection
                 title={t('Audit Payloads')}
-                description={
-                  payloadsLoaded
-                    ? t('Inspect request, response and relay trace data')
-                    : t(
-                        'Large request and response payloads load after the overview'
-                      )
-                }
+                description={t(
+                  'Large request and response payloads load after the overview'
+                )}
                 action={
-                  payloadLoading ? (
+                  activePayloadQuery.isFetching ? (
                     <StatusBadge
                       label={t('Loading payloads')}
                       variant='cyan'
@@ -750,7 +792,9 @@ export function RequestAuditDialog({
                 <Tabs
                   className='max-w-full min-w-0'
                   value={activeDetailTab}
-                  onValueChange={setActiveDetailTab}
+                  onValueChange={(value) =>
+                    setActiveDetailTab(value as RequestAuditPayloadTab)
+                  }
                 >
                   <TabsList className='h-auto max-w-full flex-wrap justify-start'>
                     <TabsTrigger value='trace'>
@@ -778,7 +822,7 @@ export function RequestAuditDialog({
                     className='max-w-full min-w-0'
                     value={activeDetailTab}
                   >
-                    {payloadsLoaded ? (
+                    {activePayloadQuery.data !== undefined ? (
                       <Suspense fallback={<JsonViewerFallback />}>
                         <LazyAuditJsonViewer
                           ariaLabel={activeDetailTitle}
@@ -786,7 +830,9 @@ export function RequestAuditDialog({
                         />
                       </Suspense>
                     ) : (
-                      <PayloadPlaceholder loading={payloadLoading} />
+                      <PayloadPlaceholder
+                        loading={activePayloadQuery.isPending}
+                      />
                     )}
                   </TabsContent>
                 </Tabs>

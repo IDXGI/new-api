@@ -24,10 +24,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { CommonLogAuditPreview } from '../columns/common-log-audit-preview'
 
-const getRequestAuditByRequestId = vi.hoisted(() => vi.fn())
+const getRequestAuditPayloadByRequestId = vi.hoisted(() => vi.fn())
 
 vi.mock('../../api', () => ({
-  getRequestAuditByRequestId,
+  getRequestAuditPayloadByRequestId,
 }))
 
 function renderPreview(ui: ReactElement) {
@@ -41,8 +41,8 @@ function renderPreview(ui: ReactElement) {
 
 describe('common log audit preview', () => {
   beforeEach(() => {
-    getRequestAuditByRequestId.mockReset()
-    getRequestAuditByRequestId.mockResolvedValue({
+    getRequestAuditPayloadByRequestId.mockReset()
+    getRequestAuditPayloadByRequestId.mockResolvedValue({
       success: true,
       data: { aggregated_text: 'Loaded full answer' },
     })
@@ -104,7 +104,7 @@ describe('common log audit preview', () => {
     vi.useFakeTimers()
     const answerText = 'Short answer preview'
     const fullAnswerText = `First complete answer line\nSecond complete answer line that is absent from the list preview.`
-    getRequestAuditByRequestId.mockResolvedValue({
+    getRequestAuditPayloadByRequestId.mockResolvedValue({
       success: true,
       data: { aggregated_text: fullAnswerText },
     })
@@ -130,7 +130,7 @@ describe('common log audit preview', () => {
       await vi.advanceTimersByTimeAsync(499)
     })
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
-    expect(getRequestAuditByRequestId).not.toHaveBeenCalled()
+    expect(getRequestAuditPayloadByRequestId).not.toHaveBeenCalled()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1)
@@ -138,7 +138,10 @@ describe('common log audit preview', () => {
     })
     const hoverPreview = screen.getByRole('tooltip')
     expect(hoverPreview.textContent).toBe(fullAnswerText)
-    expect(getRequestAuditByRequestId).toHaveBeenCalledWith('req-hover', false)
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledWith(
+      'req-hover',
+      'answer'
+    )
     expect(hoverPreview).toHaveClass(
       'bg-popover',
       'text-popover-foreground',

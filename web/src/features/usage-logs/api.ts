@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 
-import { buildQueryParams } from './lib/utils'
+import { buildQueryParams } from './lib/query-params'
 import type {
   GetLogsParams,
   GetLogsResponse,
@@ -27,6 +27,7 @@ import type {
   GetMidjourneyLogsParams,
   GetRequestAuditResponse,
   GetTaskLogsParams,
+  RequestAuditPayloadSection,
   UserInfo,
 } from './types'
 
@@ -118,11 +119,21 @@ export const getUserTaskLogs = (params: GetTaskLogsParams) =>
 
 async function getRequestAudit(
   path: string,
-  includePayloads = true
+  options: {
+    includePayloads?: boolean
+    payload?: RequestAuditPayloadSection
+  } = {}
 ): Promise<GetRequestAuditResponse> {
-  const res = await api.get(
-    `${path}?include_payloads=${includePayloads ? 'true' : 'false'}`
-  )
+  const params = new URLSearchParams()
+  if (options.payload) {
+    params.set('payload', options.payload)
+  } else {
+    params.set(
+      'include_payloads',
+      options.includePayloads === false ? 'false' : 'true'
+    )
+  }
+  const res = await api.get(`${path}?${params.toString()}`)
   return res.data
 }
 
@@ -130,22 +141,27 @@ export const getRequestAuditByRequestId = (
   requestId: string,
   includePayloads = true
 ) =>
-  getRequestAudit(
-    `/api/request-audit/${encodeURIComponent(requestId)}`,
-    includePayloads
-  )
+  getRequestAudit(`/api/request-audit/${encodeURIComponent(requestId)}`, {
+    includePayloads,
+  })
 
 export const getRequestAuditByTaskId = (
   taskId: string,
   includePayloads = true
 ) =>
-  getRequestAudit(
-    `/api/request-audit/task/${encodeURIComponent(taskId)}`,
-    includePayloads
-  )
+  getRequestAudit(`/api/request-audit/task/${encodeURIComponent(taskId)}`, {
+    includePayloads,
+  })
 
 export const getRequestAuditByMjId = (mjId: string, includePayloads = true) =>
-  getRequestAudit(
-    `/api/request-audit/mj/${encodeURIComponent(mjId)}`,
-    includePayloads
-  )
+  getRequestAudit(`/api/request-audit/mj/${encodeURIComponent(mjId)}`, {
+    includePayloads,
+  })
+
+export const getRequestAuditPayloadByRequestId = (
+  requestId: string,
+  payload: RequestAuditPayloadSection
+) =>
+  getRequestAudit(`/api/request-audit/${encodeURIComponent(requestId)}`, {
+    payload,
+  })

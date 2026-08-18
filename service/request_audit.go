@@ -493,7 +493,7 @@ func FinishRequestAudit(c *gin.Context) error {
 	finalizeRequestAuditUpstreamResponse(state)
 	attachLinkedLogs(state)
 	syncRequestAuditRelayInfo(state)
-	model.AttachRequestAuditAggregatedTextPreview(state.ResponsePayload)
+	model.SetRequestAuditAggregatedTextPreview(state.Audit, state.ResponsePayload)
 	state.TracePayload["upstream_request"] = state.UpstreamRequestPayload
 	state.TracePayload["upstream_response"] = state.UpstreamResponsePayload
 	state.Audit.RequestPayload = model.RequestAuditPayload(marshalAuditPart(state.RequestPayload))

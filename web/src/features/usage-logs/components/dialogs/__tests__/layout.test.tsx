@@ -16,12 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, describe, expect, test, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { RequestAuditRecord } from '../../../types'
 import { RequestAuditDialog } from '../request-audit-dialog'
+
+const getRequestAuditPayloadByRequestId = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../api', () => ({
+  getRequestAuditPayloadByRequestId,
+}))
 
 const answerToken = `answer-${'a'.repeat(2048)}`
 const payloadToken = `payload-${'b'.repeat(2048)}`
@@ -29,9 +37,17 @@ const payloadToken = `payload-${'b'.repeat(2048)}`
 const auditRecord: RequestAuditRecord = {
   request_id: 'req-audit-long-content',
   route_path: '/v1/responses',
-  payloads_loaded: true,
+  payloads_loaded: false,
   aggregated_text: answerToken,
-  client_request: { body_json: { input: payloadToken } },
+}
+
+function renderDialog(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
 }
 
 describe('request audit dialog layout', () => {
@@ -42,14 +58,34 @@ describe('request audit dialog layout', () => {
     })
   })
 
+  beforeEach(() => {
+    getRequestAuditPayloadByRequestId.mockReset()
+    getRequestAuditPayloadByRequestId.mockImplementation(
+      async (_requestId: string, section: string) => {
+        if (section === 'client_request') {
+          return {
+            success: true,
+            data: {
+              request_id: auditRecord.request_id,
+              client_request: { body_json: { input: payloadToken } },
+            },
+          }
+        }
+        return {
+          success: true,
+          data: { request_id: auditRecord.request_id, trace: {} },
+        }
+      }
+    )
+  })
+
   test('keeps long answer and payload tokens inside the dialog width', async () => {
     const user = userEvent.setup()
-    render(
+    renderDialog(
       <RequestAuditDialog
         open
         onOpenChange={vi.fn()}
         loading={false}
-        payloadLoading={false}
         auditRecord={auditRecord}
         onOpenRequestAudit={vi.fn()}
       />

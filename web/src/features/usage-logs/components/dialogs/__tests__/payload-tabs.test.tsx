@@ -16,23 +16,51 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
-import { beforeAll, describe, expect, test, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { RequestAuditRecord } from '../../../types'
 import { RequestAuditDialog } from '../request-audit-dialog'
 
+const getRequestAuditPayloadByRequestId = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../api', () => ({
+  getRequestAuditPayloadByRequestId,
+}))
+
 const auditRecord: RequestAuditRecord = {
   request_id: 'req-audit-tabs',
   route_path: '/v1/responses',
-  payloads_loaded: true,
-  client_request: { body_json: { model: 'client-request-model' } },
-  upstream_request: { body_json: { model: 'upstream-request-model' } },
-  upstream_response: { body_json: { model: 'upstream-response-model' } },
-  client_response: { body_json: { model: 'client-response-model' } },
-  trace: { request_conversion: ['openai_responses', 'claude'] },
+  payloads_loaded: false,
+}
+
+const sectionRecords = {
+  trace: { trace: { request_conversion: ['openai_responses', 'claude'] } },
+  client_request: {
+    client_request: { body_json: { model: 'client-request-model' } },
+  },
+  upstream_request: {
+    upstream_request: { body_json: { model: 'upstream-request-model' } },
+  },
+  upstream_response: {
+    upstream_response: { body_json: { model: 'upstream-response-model' } },
+  },
+  client_response: {
+    client_response: { body_json: { model: 'client-response-model' } },
+  },
+}
+
+function renderDialog(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
 }
 
 describe('request audit payload tabs', () => {
@@ -50,14 +78,26 @@ describe('request audit payload tabs', () => {
     })
   })
 
+  beforeEach(() => {
+    getRequestAuditPayloadByRequestId.mockReset()
+    getRequestAuditPayloadByRequestId.mockImplementation(
+      async (_requestId: string, section: keyof typeof sectionRecords) => ({
+        success: true,
+        data: {
+          request_id: auditRecord.request_id,
+          ...sectionRecords[section],
+        },
+      })
+    )
+  })
+
   test('opens on trace and defers large wire payloads until their tab is selected', async () => {
     const user = userEvent.setup()
-    render(
+    renderDialog(
       <RequestAuditDialog
         open
         onOpenChange={vi.fn()}
         loading={false}
-        payloadLoading={false}
         auditRecord={auditRecord}
         onOpenRequestAudit={vi.fn()}
       />
@@ -83,6 +123,15 @@ describe('request audit payload tabs', () => {
     expect(
       await screen.findByRole('region', { name: 'Trace' })
     ).toHaveTextContent('request_conversion')
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledWith(
+      'req-audit-tabs',
+      'trace'
+    )
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledTimes(1)
+    expect(getRequestAuditPayloadByRequestId).not.toHaveBeenCalledWith(
+      'req-audit-tabs',
+      'client_request'
+    )
     expect(
       screen.queryByRole('region', { name: 'Client Request' })
     ).not.toBeInTheDocument()
@@ -105,5 +154,14 @@ describe('request audit payload tabs', () => {
     expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
       1
     )
+
+    await user.click(screen.getByRole('tab', { name: 'Trace' }))
+    await waitFor(() => {
+      expect(
+        getRequestAuditPayloadByRequestId.mock.calls.filter(
+          ([, section]) => section === 'trace'
+        )
+      ).toHaveLength(1)
+    })
   })
 })

@@ -142,6 +142,31 @@ func TestAttachRequestAuditAggregatedTextPreviewStoresBoundedText(t *testing.T) 
 	require.LessOrEqual(t, len([]rune(preview)), requestAuditAggregatedTextPreviewRuneLimit+3)
 }
 
+func TestSetRequestAuditAggregatedTextPreviewDistinguishesEmptyNewRecord(t *testing.T) {
+	audit := &RequestAudit{}
+	payload := map[string]any{"body_kind": "empty"}
+
+	SetRequestAuditAggregatedTextPreview(audit, payload)
+
+	require.NotNil(t, audit.AggregatedTextPreview)
+	require.Empty(t, *audit.AggregatedTextPreview)
+	require.NotContains(t, payload, RequestAuditAggregatedTextPreviewKey)
+}
+
+func TestSetRequestAuditAggregatedTextPreviewFromStoredPayloadSupportsLegacyRecord(t *testing.T) {
+	audit := &RequestAudit{
+		ResponsePayload: RequestAuditPayload(`{
+			"body_kind":"json",
+			"body_json":{"choices":[{"message":{"content":"legacy answer"}}]}
+		}`),
+	}
+
+	SetRequestAuditAggregatedTextPreviewFromStoredPayload(audit)
+
+	require.NotNil(t, audit.AggregatedTextPreview)
+	require.Equal(t, "legacy answer", *audit.AggregatedTextPreview)
+}
+
 func TestExtractRequestAuditAggregatedTextPreview_PrefersStoredPreview(t *testing.T) {
 	rawPayload, err := common.Marshal(map[string]any{
 		RequestAuditAggregatedTextPreviewKey: "stored answer preview",

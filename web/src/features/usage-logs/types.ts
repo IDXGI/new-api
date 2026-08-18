@@ -420,6 +420,14 @@ export interface UserInfo {
 // Request Audit Types
 // ============================================================================
 
+export type RequestAuditPayloadSection =
+  | 'answer'
+  | 'trace'
+  | 'client_request'
+  | 'upstream_request'
+  | 'upstream_response'
+  | 'client_response'
+
 export interface RequestAuditRelatedRecord {
   request_id: string
   route_group?: string
@@ -457,6 +465,7 @@ export interface RequestAuditRecord extends RequestAuditRelatedRecord {
   first_response_ms?: number
   aggregated_text?: string
   payloads_loaded?: boolean
+  payload_section?: RequestAuditPayloadSection
   related_records?: RequestAuditRelatedRecord[]
   client_request?: unknown
   upstream_request?: unknown

@@ -74,7 +74,6 @@ function UsageLogsContent() {
     auditDialogOpen,
     auditRecord,
     auditLoading,
-    auditPayloadLoading,
     openAuditByRequestId,
     closeAuditDialog,
   } = useUsageLogsContext()
@@ -195,7 +194,6 @@ function UsageLogsContent() {
           if (!open) closeAuditDialog()
         }}
         loading={auditLoading}
-        payloadLoading={auditPayloadLoading}
         auditRecord={auditRecord}
         onOpenRequestAudit={openAuditByRequestId}
       />

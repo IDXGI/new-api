@@ -25,7 +25,7 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
 
-import { getRequestAuditByRequestId } from '../../api'
+import { getRequestAuditPayloadByRequestId } from '../../api'
 
 const AUDIT_ANSWER_PREVIEW_RUNE_LIMIT = 160
 const AUDIT_ANSWER_HOVER_DELAY_MS = 500
@@ -58,9 +58,12 @@ function AuditAnswerHoverContent(props: {
   requestId: string
 }) {
   const fullAnswerQuery = useQuery({
-    queryKey: ['request-audit', 'aggregated-text', props.requestId],
+    queryKey: ['request-audit', 'payload', props.requestId, 'answer'],
     queryFn: async () => {
-      const result = await getRequestAuditByRequestId(props.requestId, false)
+      const result = await getRequestAuditPayloadByRequestId(
+        props.requestId,
+        'answer'
+      )
       if (!result.success || !result.data) {
         throw new Error(result.message || 'Request audit unavailable')
       }

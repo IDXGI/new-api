@@ -55,7 +55,6 @@ interface UsageLogsContextValue {
   auditDialogOpen: boolean
   auditRecord: RequestAuditRecord | null
   auditLoading: boolean
-  auditPayloadLoading: boolean
   openAuditByRequestId: (requestId: string) => void
   openAuditByTaskId: (taskId: string) => void
   openAuditByMjId: (mjId: string) => void
@@ -86,37 +85,7 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
     null
   )
   const [auditLoading, setAuditLoading] = useState(false)
-  const [auditPayloadLoading, setAuditPayloadLoading] = useState(false)
   const auditRequestSeqRef = useRef(0)
-
-  const loadAuditPayloadByRequestId = useCallback(
-    async (requestId: string, requestSeq = auditRequestSeqRef.current) => {
-      if (!requestId) return
-      setAuditPayloadLoading(true)
-      try {
-        const result = await getRequestAuditByRequestId(requestId)
-        if (requestSeq !== auditRequestSeqRef.current) return
-        if (result.success && result.data) {
-          const loadedAudit = result.data
-          setAuditRecord((prev) => {
-            if (!prev || prev.request_id !== requestId) return loadedAudit
-            return { ...prev, ...loadedAudit }
-          })
-        } else {
-          toast.error(result.message || t('Failed to load request audit'))
-        }
-      } catch {
-        if (requestSeq === auditRequestSeqRef.current) {
-          toast.error(t('Failed to load request audit'))
-        }
-      } finally {
-        if (requestSeq === auditRequestSeqRef.current) {
-          setAuditPayloadLoading(false)
-        }
-      }
-    },
-    [t]
-  )
 
   const openAudit = useCallback(
     async (
@@ -139,7 +108,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
       setAuditDialogOpen(true)
       setAuditRecord(null)
       setAuditLoading(true)
-      setAuditPayloadLoading(false)
 
       try {
         const result = await loader(targetId, false)
@@ -147,7 +115,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         if (result.success && result.data) {
           setAuditRecord(result.data)
           setAuditLoading(false)
-          void loadAuditPayloadByRequestId(result.data.request_id, requestSeq)
         } else {
           setAuditDialogOpen(false)
           setAuditRecord(null)
@@ -162,7 +129,7 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         toast.error(t('Failed to load request audit'))
       }
     },
-    [canViewRequestAudit, loadAuditPayloadByRequestId, t]
+    [canViewRequestAudit, t]
   )
 
   const openAuditByRequestId = useCallback(
@@ -202,7 +169,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
     auditRequestSeqRef.current += 1
     setAuditDialogOpen(false)
     setAuditLoading(false)
-    setAuditPayloadLoading(false)
     setAuditRecord(null)
   }, [])
   const [viewScope, setViewScope] = useState<LogsViewScope>('all')
@@ -224,7 +190,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         auditDialogOpen,
         auditRecord,
         auditLoading,
-        auditPayloadLoading,
         openAuditByRequestId,
         openAuditByTaskId,
         openAuditByMjId,

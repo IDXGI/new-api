@@ -31,43 +31,53 @@ const (
 const requestAuditAggregatedTextPreviewRuneLimit = 240
 
 type RequestAudit struct {
-	ID                int64               `json:"id" gorm:"primaryKey;autoIncrement"`
-	CreatedAt         int64               `json:"created_at" gorm:"bigint;index:idx_request_audits_created_at"`
-	UpdatedAt         int64               `json:"updated_at" gorm:"bigint"`
-	RequestID         string              `json:"request_id" gorm:"type:varchar(64);uniqueIndex"`
-	UserId            int                 `json:"user_id" gorm:"index"`
-	Username          string              `json:"username" gorm:"type:varchar(64);index;default:''"`
-	Mode              string              `json:"mode" gorm:"type:varchar(16);index;default:''"`
-	RouteGroup        string              `json:"route_group" gorm:"type:varchar(32);index;default:''"`
-	RoutePath         string              `json:"route_path" gorm:"type:varchar(255);index;default:''"`
-	Method            string              `json:"method" gorm:"type:varchar(16);default:''"`
-	StatusCode        int                 `json:"status_code" gorm:"index"`
-	Success           bool                `json:"success" gorm:"index"`
-	RelayFormat       string              `json:"relay_format" gorm:"type:varchar(32);index;default:''"`
-	RelayMode         int                 `json:"relay_mode" gorm:"index"`
-	IsStream          bool                `json:"is_stream"`
-	IsPlayground      bool                `json:"is_playground"`
-	ModelName         string              `json:"model_name" gorm:"type:varchar(128);index;default:''"`
-	UpstreamModelName string              `json:"upstream_model_name" gorm:"type:varchar(128);default:''"`
-	Group             string              `json:"group" gorm:"column:group;type:varchar(64);index;default:''"`
-	TokenId           int                 `json:"token_id" gorm:"index"`
-	TokenName         string              `json:"token_name" gorm:"type:varchar(128);index;default:''"`
-	ChannelId         int                 `json:"channel_id" gorm:"index"`
-	ChannelName       string              `json:"channel_name" gorm:"type:varchar(128);default:''"`
-	ChannelType       int                 `json:"channel_type" gorm:"index"`
-	TaskID            string              `json:"task_id" gorm:"type:varchar(191);index;default:''"`
-	MjID              string              `json:"mj_id" gorm:"type:varchar(191);index;default:''"`
-	StartedAt         int64               `json:"started_at" gorm:"bigint;index"`
-	FinishedAt        int64               `json:"finished_at" gorm:"bigint;index"`
-	LatencyMs         int64               `json:"latency_ms"`
-	FirstResponseMs   int64               `json:"first_response_ms"`
-	RetryCount        int                 `json:"retry_count"`
-	RequestPayload    RequestAuditPayload `json:"request_payload"`
-	ResponsePayload   RequestAuditPayload `json:"response_payload"`
-	TracePayload      RequestAuditPayload `json:"trace_payload"`
+	ID                    int64               `json:"id" gorm:"primaryKey;autoIncrement"`
+	CreatedAt             int64               `json:"created_at" gorm:"bigint;index:idx_request_audits_created_at"`
+	UpdatedAt             int64               `json:"updated_at" gorm:"bigint"`
+	RequestID             string              `json:"request_id" gorm:"type:varchar(64);uniqueIndex"`
+	UserId                int                 `json:"user_id" gorm:"index"`
+	Username              string              `json:"username" gorm:"type:varchar(64);index;default:''"`
+	Mode                  string              `json:"mode" gorm:"type:varchar(16);index;default:''"`
+	RouteGroup            string              `json:"route_group" gorm:"type:varchar(32);index;default:''"`
+	RoutePath             string              `json:"route_path" gorm:"type:varchar(255);index;default:''"`
+	Method                string              `json:"method" gorm:"type:varchar(16);default:''"`
+	StatusCode            int                 `json:"status_code" gorm:"index"`
+	Success               bool                `json:"success" gorm:"index"`
+	RelayFormat           string              `json:"relay_format" gorm:"type:varchar(32);index;default:''"`
+	RelayMode             int                 `json:"relay_mode" gorm:"index"`
+	IsStream              bool                `json:"is_stream"`
+	IsPlayground          bool                `json:"is_playground"`
+	ModelName             string              `json:"model_name" gorm:"type:varchar(128);index;default:''"`
+	UpstreamModelName     string              `json:"upstream_model_name" gorm:"type:varchar(128);default:''"`
+	Group                 string              `json:"group" gorm:"column:group;type:varchar(64);index;default:''"`
+	TokenId               int                 `json:"token_id" gorm:"index"`
+	TokenName             string              `json:"token_name" gorm:"type:varchar(128);index;default:''"`
+	ChannelId             int                 `json:"channel_id" gorm:"index"`
+	ChannelName           string              `json:"channel_name" gorm:"type:varchar(128);default:''"`
+	ChannelType           int                 `json:"channel_type" gorm:"index"`
+	TaskID                string              `json:"task_id" gorm:"type:varchar(191);index;default:''"`
+	MjID                  string              `json:"mj_id" gorm:"type:varchar(191);index;default:''"`
+	StartedAt             int64               `json:"started_at" gorm:"bigint;index"`
+	FinishedAt            int64               `json:"finished_at" gorm:"bigint;index"`
+	LatencyMs             int64               `json:"latency_ms"`
+	FirstResponseMs       int64               `json:"first_response_ms"`
+	RetryCount            int                 `json:"retry_count"`
+	AggregatedTextPreview *string             `json:"aggregated_text_preview,omitempty" gorm:"type:varchar(1024)"`
+	RequestPayload        RequestAuditPayload `json:"request_payload"`
+	ResponsePayload       RequestAuditPayload `json:"response_payload"`
+	TracePayload          RequestAuditPayload `json:"trace_payload"`
 }
 
 type RequestAuditPayload string
+
+type RequestAuditPayloadFields uint8
+
+const (
+	RequestAuditRequestPayload RequestAuditPayloadFields = 1 << iota
+	RequestAuditResponsePayload
+	RequestAuditTracePayload
+	RequestAuditAllPayloads = RequestAuditRequestPayload | RequestAuditResponsePayload | RequestAuditTracePayload
+)
 
 func (RequestAuditPayload) GormDataType() string {
 	return "text"
@@ -96,9 +106,18 @@ func GetRequestAuditByRequestID(requestID string) (*RequestAudit, error) {
 	return &audit, nil
 }
 
+func GetRequestAuditOverviewByRequestID(requestID string) (*RequestAudit, error) {
+	var audit RequestAudit
+	err := requestAuditOverviewQuery().Where("request_id = ?", requestID).First(&audit).Error
+	if err != nil {
+		return nil, err
+	}
+	return &audit, nil
+}
+
 func GetPreferredRequestAuditByTaskID(taskID string) (*RequestAudit, error) {
 	var audit RequestAudit
-	err := LOG_DB.Where("task_id = ?", taskID).Order(taskAuditOrderExpr).First(&audit).Error
+	err := requestAuditOverviewQuery().Where("task_id = ?", taskID).Order(taskAuditOrderExpr).First(&audit).Error
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +126,7 @@ func GetPreferredRequestAuditByTaskID(taskID string) (*RequestAudit, error) {
 
 func GetPreferredRequestAuditByMJID(mjID string) (*RequestAudit, error) {
 	var audit RequestAudit
-	err := LOG_DB.Where("mj_id = ?", mjID).Order(mjAuditOrderExpr).First(&audit).Error
+	err := requestAuditOverviewQuery().Where("mj_id = ?", mjID).Order(mjAuditOrderExpr).First(&audit).Error
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +138,7 @@ func ListRequestAuditsByTaskID(taskID string, limit int) ([]*RequestAudit, error
 		limit = 10
 	}
 	var audits []*RequestAudit
-	err := LOG_DB.Where("task_id = ?", taskID).Order(taskAuditOrderExpr).Limit(limit).Find(&audits).Error
+	err := requestAuditOverviewQuery().Where("task_id = ?", taskID).Order(taskAuditOrderExpr).Limit(limit).Find(&audits).Error
 	if err != nil {
 		return nil, err
 	}
@@ -131,11 +150,47 @@ func ListRequestAuditsByMJID(mjID string, limit int) ([]*RequestAudit, error) {
 		limit = 10
 	}
 	var audits []*RequestAudit
-	err := LOG_DB.Where("mj_id = ?", mjID).Order(mjAuditOrderExpr).Limit(limit).Find(&audits).Error
+	err := requestAuditOverviewQuery().Where("mj_id = ?", mjID).Order(mjAuditOrderExpr).Limit(limit).Find(&audits).Error
 	if err != nil {
 		return nil, err
 	}
 	return audits, nil
+}
+
+func requestAuditOverviewQuery() *gorm.DB {
+	return LOG_DB.Omit("RequestPayload", "ResponsePayload", "TracePayload")
+}
+
+func LoadRequestAuditPayloads(audit *RequestAudit, fields RequestAuditPayloadFields) error {
+	if audit == nil || audit.RequestID == "" || fields == 0 {
+		return nil
+	}
+
+	columns := make([]string, 0, 3)
+	if fields&RequestAuditRequestPayload != 0 {
+		columns = append(columns, "request_payload")
+	}
+	if fields&RequestAuditResponsePayload != 0 {
+		columns = append(columns, "response_payload")
+	}
+	if fields&RequestAuditTracePayload != 0 {
+		columns = append(columns, "trace_payload")
+	}
+
+	var payloads RequestAudit
+	if err := LOG_DB.Select(columns).Where("request_id = ?", audit.RequestID).First(&payloads).Error; err != nil {
+		return err
+	}
+	if fields&RequestAuditRequestPayload != 0 {
+		audit.RequestPayload = payloads.RequestPayload
+	}
+	if fields&RequestAuditResponsePayload != 0 {
+		audit.ResponsePayload = payloads.ResponsePayload
+	}
+	if fields&RequestAuditTracePayload != 0 {
+		audit.TracePayload = payloads.TracePayload
+	}
+	return nil
 }
 
 func CountOldRequestAudits(ctx context.Context, targetTimestamp int64) (int64, error) {
@@ -216,6 +271,23 @@ func AttachRequestAuditAggregatedTextPreview(payload map[string]any) {
 	payload[RequestAuditAggregatedTextPreviewKey] = preview
 }
 
+func SetRequestAuditAggregatedTextPreview(audit *RequestAudit, payload map[string]any) {
+	if audit == nil {
+		return
+	}
+	AttachRequestAuditAggregatedTextPreview(payload)
+	preview, _ := payload[RequestAuditAggregatedTextPreviewKey].(string)
+	audit.AggregatedTextPreview = &preview
+}
+
+func SetRequestAuditAggregatedTextPreviewFromStoredPayload(audit *RequestAudit) {
+	if audit == nil || audit.AggregatedTextPreview != nil {
+		return
+	}
+	preview := extractRequestAuditAggregatedTextPreview(string(audit.ResponsePayload))
+	audit.AggregatedTextPreview = &preview
+}
+
 func buildRequestAuditAggregatedTextPreview(text string) string {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -268,19 +340,40 @@ func GetAggregatedTextsByRequestIDs(requestIDs []string) (map[string]string, err
 	}
 
 	var audits []struct {
-		RequestID       string `gorm:"column:request_id"`
-		ResponsePayload string `gorm:"column:response_payload"`
+		RequestID             string  `gorm:"column:request_id"`
+		AggregatedTextPreview *string `gorm:"column:aggregated_text_preview"`
 	}
 	if err := LOG_DB.Model(&RequestAudit{}).
-		Select("request_id, response_payload").
+		Select("request_id, aggregated_text_preview").
 		Where("request_id IN ?", uniqueIDs).
 		Find(&audits).Error; err != nil {
 		return nil, err
 	}
 
+	legacyRequestIDs := make([]string, 0)
 	for _, audit := range audits {
-		aggregatedText := extractRequestAuditAggregatedTextPreview(audit.ResponsePayload)
-		result[audit.RequestID] = aggregatedText
+		if audit.AggregatedTextPreview == nil {
+			legacyRequestIDs = append(legacyRequestIDs, audit.RequestID)
+			continue
+		}
+		result[audit.RequestID] = *audit.AggregatedTextPreview
+	}
+	if len(legacyRequestIDs) == 0 {
+		return result, nil
+	}
+
+	var legacyAudits []struct {
+		RequestID       string              `gorm:"column:request_id"`
+		ResponsePayload RequestAuditPayload `gorm:"column:response_payload"`
+	}
+	if err := LOG_DB.Model(&RequestAudit{}).
+		Select("request_id, response_payload").
+		Where("request_id IN ?", legacyRequestIDs).
+		Find(&legacyAudits).Error; err != nil {
+		return nil, err
+	}
+	for _, audit := range legacyAudits {
+		result[audit.RequestID] = extractRequestAuditAggregatedTextPreview(string(audit.ResponsePayload))
 	}
 	return result, nil
 }

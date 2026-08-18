@@ -12,42 +12,76 @@ import (
 	"gorm.io/gorm"
 )
 
+type requestAuditPayloadSelection string
+
+const (
+	requestAuditPayloadNone             requestAuditPayloadSelection = ""
+	requestAuditPayloadAll              requestAuditPayloadSelection = "all"
+	requestAuditPayloadAnswer           requestAuditPayloadSelection = "answer"
+	requestAuditPayloadTrace            requestAuditPayloadSelection = "trace"
+	requestAuditPayloadClientRequest    requestAuditPayloadSelection = "client_request"
+	requestAuditPayloadUpstreamRequest  requestAuditPayloadSelection = "upstream_request"
+	requestAuditPayloadUpstreamResponse requestAuditPayloadSelection = "upstream_response"
+	requestAuditPayloadClientResponse   requestAuditPayloadSelection = "client_response"
+)
+
 func GetRequestAuditByRequestID(c *gin.Context) {
 	if !ensureRequestAuditAdmin(c) {
 		return
 	}
-	audit, err := model.GetRequestAuditByRequestID(c.Param("request_id"))
-	respondRequestAudit(c, audit, nil, err, shouldIncludeRequestAuditPayloads(c))
+	selection, ok := getRequestAuditPayloadSelection(c)
+	if !ok {
+		return
+	}
+	audit, err := model.GetRequestAuditOverviewByRequestID(c.Param("request_id"))
+	if err == nil {
+		err = loadRequestAuditPayloadSelection(audit, selection)
+	}
+	respondRequestAudit(c, audit, nil, err, selection)
 }
 
 func GetRequestAuditByTaskID(c *gin.Context) {
 	if !ensureRequestAuditAdmin(c) {
 		return
 	}
-	includePayloads := shouldIncludeRequestAuditPayloads(c)
+	selection, ok := getRequestAuditPayloadSelection(c)
+	if !ok {
+		return
+	}
 	taskID := c.Param("task_id")
 	audit, err := model.GetPreferredRequestAuditByTaskID(taskID)
 	if err != nil {
-		respondRequestAudit(c, audit, nil, err, includePayloads)
+		respondRequestAudit(c, audit, nil, err, selection)
+		return
+	}
+	if err = loadRequestAuditPayloadSelection(audit, selection); err != nil {
+		respondRequestAudit(c, audit, nil, err, selection)
 		return
 	}
 	related, relatedErr := model.ListRequestAuditsByTaskID(taskID, 10)
-	respondRequestAudit(c, audit, related, relatedErr, includePayloads)
+	respondRequestAudit(c, audit, related, relatedErr, selection)
 }
 
 func GetRequestAuditByMJID(c *gin.Context) {
 	if !ensureRequestAuditAdmin(c) {
 		return
 	}
-	includePayloads := shouldIncludeRequestAuditPayloads(c)
+	selection, ok := getRequestAuditPayloadSelection(c)
+	if !ok {
+		return
+	}
 	mjID := c.Param("mj_id")
 	audit, err := model.GetPreferredRequestAuditByMJID(mjID)
 	if err != nil {
-		respondRequestAudit(c, audit, nil, err, includePayloads)
+		respondRequestAudit(c, audit, nil, err, selection)
+		return
+	}
+	if err = loadRequestAuditPayloadSelection(audit, selection); err != nil {
+		respondRequestAudit(c, audit, nil, err, selection)
 		return
 	}
 	related, relatedErr := model.ListRequestAuditsByMJID(mjID, 10)
-	respondRequestAudit(c, audit, related, relatedErr, includePayloads)
+	respondRequestAudit(c, audit, related, relatedErr, selection)
 }
 
 func ensureRequestAuditAdmin(c *gin.Context) bool {
@@ -61,7 +95,7 @@ func ensureRequestAuditAdmin(c *gin.Context) bool {
 	return false
 }
 
-func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*model.RequestAudit, err error, includePayloads bool) {
+func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*model.RequestAudit, err error, selection requestAuditPayloadSelection) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || model.IsRequestAuditNotFound(err) {
 			c.JSON(http.StatusOK, gin.H{
@@ -73,21 +107,38 @@ func respondRequestAudit(c *gin.Context, audit *model.RequestAudit, related []*m
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, buildRequestAuditResponse(audit, buildRelatedAuditRecords(related), includePayloads))
+	common.ApiSuccess(c, buildRequestAuditResponseWithSelection(audit, buildRelatedAuditRecords(related), selection))
 }
 
 func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H, includePayloads bool) gin.H {
+	selection := requestAuditPayloadNone
+	if includePayloads {
+		selection = requestAuditPayloadAll
+	}
+	return buildRequestAuditResponseWithSelection(audit, relatedRecords, selection)
+}
+
+func buildRequestAuditResponseWithSelection(audit *model.RequestAudit, relatedRecords []gin.H, selection requestAuditPayloadSelection) gin.H {
 	var requestPayload any
 	var responsePayload any
 	var tracePayload any
-	if includePayloads {
+	if selection.includesRequestPayload() {
 		requestPayload = parseAuditPayload(string(audit.RequestPayload))
+	}
+	if selection.exposesResponsePayload() {
 		responsePayload = parseAuditPayload(string(audit.ResponsePayload))
+	}
+	if selection.includesTracePayload() {
 		tracePayload = parseAuditPayload(string(audit.TracePayload))
 	}
 	upstreamRequestPayload, upstreamResponsePayload, tracePayload := splitAuditWirePayloads(tracePayload)
 	upstreamModelName, tracePayload := enrichAuditModelResolution(audit, tracePayload)
-	aggregatedText := model.ExtractAggregatedTextFromResponsePayload(string(audit.ResponsePayload))
+	aggregatedText := ""
+	if selection.includesResponsePayload() {
+		aggregatedText = model.ExtractAggregatedTextFromResponsePayload(string(audit.ResponsePayload))
+	} else if audit.AggregatedTextPreview != nil {
+		aggregatedText = *audit.AggregatedTextPreview
+	}
 	response := gin.H{
 		"id":                  audit.ID,
 		"request_id":          audit.RequestID,
@@ -121,10 +172,14 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		"first_response_ms":   audit.FirstResponseMs,
 		"retry_count":         audit.RetryCount,
 		"aggregated_text":     aggregatedText,
-		"payloads_loaded":     includePayloads,
+		"payloads_loaded":     selection == requestAuditPayloadAll,
 		"related_records":     relatedRecords,
 	}
-	if includePayloads {
+	if selection != requestAuditPayloadNone && selection != requestAuditPayloadAll {
+		response["payload_section"] = string(selection)
+	}
+	switch selection {
+	case requestAuditPayloadAll:
 		response["client_request"] = requestPayload
 		response["upstream_request"] = upstreamRequestPayload
 		response["upstream_response"] = upstreamResponsePayload
@@ -133,8 +188,64 @@ func buildRequestAuditResponse(audit *model.RequestAudit, relatedRecords []gin.H
 		response["request"] = requestPayload
 		response["response"] = responsePayload
 		response["trace"] = tracePayload
+	case requestAuditPayloadClientRequest:
+		response["client_request"] = requestPayload
+	case requestAuditPayloadUpstreamRequest:
+		response["upstream_request"] = upstreamRequestPayload
+	case requestAuditPayloadUpstreamResponse:
+		response["upstream_response"] = upstreamResponsePayload
+	case requestAuditPayloadClientResponse:
+		response["client_response"] = responsePayload
+	case requestAuditPayloadTrace:
+		response["trace"] = tracePayload
 	}
 	return response
+}
+
+func (selection requestAuditPayloadSelection) modelFields() model.RequestAuditPayloadFields {
+	switch selection {
+	case requestAuditPayloadAll:
+		return model.RequestAuditAllPayloads
+	case requestAuditPayloadClientRequest:
+		return model.RequestAuditRequestPayload
+	case requestAuditPayloadAnswer, requestAuditPayloadClientResponse:
+		return model.RequestAuditResponsePayload
+	case requestAuditPayloadTrace, requestAuditPayloadUpstreamRequest, requestAuditPayloadUpstreamResponse:
+		return model.RequestAuditTracePayload
+	default:
+		return 0
+	}
+}
+
+func loadRequestAuditPayloadSelection(audit *model.RequestAudit, selection requestAuditPayloadSelection) error {
+	fields := selection.modelFields()
+	needsLegacyPreview := audit != nil && audit.AggregatedTextPreview == nil
+	if needsLegacyPreview {
+		fields |= model.RequestAuditResponsePayload
+	}
+	if err := model.LoadRequestAuditPayloads(audit, fields); err != nil {
+		return err
+	}
+	if needsLegacyPreview {
+		model.SetRequestAuditAggregatedTextPreviewFromStoredPayload(audit)
+	}
+	return nil
+}
+
+func (selection requestAuditPayloadSelection) includesRequestPayload() bool {
+	return selection == requestAuditPayloadAll || selection == requestAuditPayloadClientRequest
+}
+
+func (selection requestAuditPayloadSelection) includesResponsePayload() bool {
+	return selection == requestAuditPayloadAll || selection == requestAuditPayloadAnswer || selection == requestAuditPayloadClientResponse
+}
+
+func (selection requestAuditPayloadSelection) exposesResponsePayload() bool {
+	return selection == requestAuditPayloadAll || selection == requestAuditPayloadClientResponse
+}
+
+func (selection requestAuditPayloadSelection) includesTracePayload() bool {
+	return selection == requestAuditPayloadAll || selection == requestAuditPayloadTrace || selection == requestAuditPayloadUpstreamRequest || selection == requestAuditPayloadUpstreamResponse
 }
 
 func splitAuditWirePayloads(tracePayload any) (any, any, any) {
@@ -280,5 +391,31 @@ func shouldIncludeRequestAuditPayloads(c *gin.Context) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+func getRequestAuditPayloadSelection(c *gin.Context) (requestAuditPayloadSelection, bool) {
+	payload := requestAuditPayloadSelection(strings.TrimSpace(strings.ToLower(c.Query("payload"))))
+	if payload == requestAuditPayloadNone {
+		if shouldIncludeRequestAuditPayloads(c) {
+			return requestAuditPayloadAll, true
+		}
+		return requestAuditPayloadNone, true
+	}
+
+	switch payload {
+	case requestAuditPayloadAnswer,
+		requestAuditPayloadTrace,
+		requestAuditPayloadClientRequest,
+		requestAuditPayloadUpstreamRequest,
+		requestAuditPayloadUpstreamResponse,
+		requestAuditPayloadClientResponse:
+		return payload, true
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "不支持的审计载荷类型",
+		})
+		return requestAuditPayloadNone, false
 	}
 }

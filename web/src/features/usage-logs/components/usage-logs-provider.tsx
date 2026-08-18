@@ -105,8 +105,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
 
       const requestSeq = auditRequestSeqRef.current + 1
       auditRequestSeqRef.current = requestSeq
-      setAuditDialogOpen(true)
-      setAuditRecord(null)
       setAuditLoading(true)
 
       try {
@@ -115,16 +113,13 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
         if (result.success && result.data) {
           setAuditRecord(result.data)
           setAuditLoading(false)
+          setAuditDialogOpen(true)
         } else {
-          setAuditDialogOpen(false)
-          setAuditRecord(null)
           setAuditLoading(false)
           toast.error(result.message || t('Failed to load request audit'))
         }
       } catch {
         if (requestSeq !== auditRequestSeqRef.current) return
-        setAuditDialogOpen(false)
-        setAuditRecord(null)
         setAuditLoading(false)
         toast.error(t('Failed to load request audit'))
       }
@@ -169,7 +164,6 @@ export function UsageLogsProvider({ children }: { children: ReactNode }) {
     auditRequestSeqRef.current += 1
     setAuditDialogOpen(false)
     setAuditLoading(false)
-    setAuditRecord(null)
   }, [])
   const [viewScope, setViewScope] = useState<LogsViewScope>('all')
 

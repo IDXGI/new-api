@@ -38,7 +38,6 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -260,34 +259,24 @@ function MetricCard({
 
 function JsonViewerFallback() {
   return (
-    <div className='bg-background flex min-h-48 w-full max-w-full min-w-0 flex-col gap-2 overflow-hidden rounded-lg border p-3'>
-      <Skeleton className='h-3 w-1/3' />
-      <Skeleton className='h-3 w-4/5' />
-      <Skeleton className='h-3 w-2/3' />
-      <Skeleton className='h-3 w-3/4' />
-    </div>
+    <div
+      aria-hidden='true'
+      className='bg-background h-[26.25rem] w-full max-w-full min-w-0 overflow-hidden rounded-lg border'
+    />
   )
 }
 
-function PayloadPlaceholder({ loading }: { loading: boolean }) {
+function PayloadPlaceholder() {
   const { t } = useTranslation()
   return (
-    <Empty className='min-h-56 border'>
+    <Empty className='h-[26.25rem] border'>
       <EmptyHeader>
         <EmptyMedia variant='icon'>
-          {loading ? <Spinner /> : <FileJson />}
+          <FileJson />
         </EmptyMedia>
-        <EmptyTitle>
-          {loading
-            ? t('Loading audit payloads')
-            : t('Audit payloads not ready')}
-        </EmptyTitle>
+        <EmptyTitle>{t('Audit payloads not ready')}</EmptyTitle>
         <EmptyDescription>
-          {loading
-            ? t(
-                'Client, upstream and trace details are loading in the background'
-              )
-            : t('Audit details are not available yet. Please try again later.')}
+          {t('Audit details are not available yet. Please try again later.')}
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -434,6 +423,19 @@ export function RequestAuditDialog({
       activeDetailTitle = t('Client Response')
       break
   }
+  let activePayloadContent: React.ReactNode = <JsonViewerFallback />
+  if (activePayloadQuery.data !== undefined) {
+    activePayloadContent = (
+      <Suspense fallback={<JsonViewerFallback />}>
+        <LazyAuditJsonViewer
+          ariaLabel={activeDetailTitle}
+          value={activeDetailPayload}
+        />
+      </Suspense>
+    )
+  } else if (activePayloadQuery.isError) {
+    activePayloadContent = <PayloadPlaceholder />
+  }
   const relatedRecords = useMemo(
     () =>
       Array.isArray(auditRecord?.related_records)
@@ -476,7 +478,7 @@ export function RequestAuditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] min-w-0 overflow-hidden sm:max-w-5xl'>
+      <DialogContent className='h-[min(52rem,calc(100dvh-2rem))] w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-w-5xl'>
         <DialogHeader className='min-w-0'>
           <DialogTitle className='flex min-w-0 items-center gap-2'>
             <StatusBadge
@@ -493,7 +495,7 @@ export function RequestAuditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className='max-h-[calc(100dvh-8rem)] w-full max-w-full min-w-0 overflow-x-hidden pr-3 [&_[data-slot=scroll-area-viewport]]:max-w-full [&_[data-slot=scroll-area-viewport]]:min-w-0 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden'>
+        <ScrollArea className='h-full min-h-0 w-full max-w-full min-w-0 overflow-x-hidden pr-3 [&_[data-slot=scroll-area-viewport]]:max-w-full [&_[data-slot=scroll-area-viewport]]:min-w-0 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden'>
           {auditRecord ? (
             <div className='flex w-full max-w-full min-w-0 flex-col gap-4 overflow-x-hidden pb-1'>
               <AuditSection
@@ -777,17 +779,6 @@ export function RequestAuditDialog({
                 description={t(
                   'Large request and response payloads load after the overview'
                 )}
-                action={
-                  activePayloadQuery.isFetching ? (
-                    <StatusBadge
-                      label={t('Loading payloads')}
-                      variant='cyan'
-                      size='sm'
-                      pulse
-                      copyable={false}
-                    />
-                  ) : null
-                }
               >
                 <Tabs
                   className='max-w-full min-w-0'
@@ -819,21 +810,11 @@ export function RequestAuditDialog({
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent
-                    className='max-w-full min-w-0'
+                    className='min-h-[26.25rem] max-w-full min-w-0'
                     value={activeDetailTab}
+                    aria-busy={activePayloadQuery.isPending}
                   >
-                    {activePayloadQuery.data !== undefined ? (
-                      <Suspense fallback={<JsonViewerFallback />}>
-                        <LazyAuditJsonViewer
-                          ariaLabel={activeDetailTitle}
-                          value={activeDetailPayload}
-                        />
-                      </Suspense>
-                    ) : (
-                      <PayloadPlaceholder
-                        loading={activePayloadQuery.isPending}
-                      />
-                    )}
+                    {activePayloadContent}
                   </TabsContent>
                 </Tabs>
               </AuditSection>

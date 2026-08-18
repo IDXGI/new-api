@@ -30,6 +30,7 @@ import { getRequestAuditPayloadByRequestId } from '../../api'
 const AUDIT_ANSWER_PREVIEW_RUNE_LIMIT = 160
 const AUDIT_ANSWER_HOVER_DELAY_MS = 500
 const AUDIT_ANSWER_HOVER_CLOSE_DELAY_MS = 200
+const AUDIT_ANSWER_TEXT_SIZE = 'text-[13px] leading-relaxed'
 
 function getAuditAnswerPreview(answerText: string | undefined): string {
   if (!answerText) return ''
@@ -133,7 +134,7 @@ export function CommonLogAuditPreview(props: {
         render={
           <button
             type='button'
-            className='focus-visible:ring-ring block w-full min-w-0 border-0 bg-transparent p-0 text-left text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default'
+            className={`focus-visible:ring-ring block w-full min-w-0 border-0 bg-transparent p-0 text-left focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default ${AUDIT_ANSWER_TEXT_SIZE}`}
             data-disable-active-scale
             aria-label={props.auditLabel}
             title={nativeTitle}
@@ -169,7 +170,7 @@ export function CommonLogAuditPreview(props: {
           positionMethod='fixed'
           side='bottom'
           sideOffset={10}
-          className='max-h-64 w-80 max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain p-3 text-left text-xs leading-relaxed'
+          className={`max-h-64 w-80 max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain p-3 text-left ${AUDIT_ANSWER_TEXT_SIZE}`}
         >
           <AuditAnswerHoverContent
             fallbackText={hoverText}

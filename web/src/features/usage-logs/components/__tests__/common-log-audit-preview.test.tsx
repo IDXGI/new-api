@@ -71,6 +71,7 @@ describe('common log audit preview', () => {
     const previewText = preview.querySelector('span')
     expect(preview).not.toHaveTextContent(hiddenTail)
     expect(preview).toHaveAttribute('data-disable-active-scale')
+    expect(preview).toHaveClass('text-[13px]')
     expect(previewText).toHaveClass(
       'line-clamp-2',
       'break-all',
@@ -100,7 +101,7 @@ describe('common log audit preview', () => {
     expect(onOpen).toHaveBeenCalledWith('req-click')
   })
 
-  test('loads the full answer in a smaller themed popup after a half-second hover', async () => {
+  test('loads the full answer in a matching-size themed popup after a half-second hover', async () => {
     vi.useFakeTimers()
     const answerText = 'Short answer preview'
     const fullAnswerText = `First complete answer line\nSecond complete answer line that is absent from the list preview.`
@@ -149,7 +150,7 @@ describe('common log audit preview', () => {
       'overflow-x-hidden',
       'overflow-y-auto',
       'overscroll-contain',
-      'text-xs'
+      'text-[13px]'
     )
     expect(hoverPreview.firstElementChild).toHaveClass(
       'min-w-0',

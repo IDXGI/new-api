@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import i18next from 'i18next'
 import type { ReactElement } from 'react'
@@ -163,5 +163,48 @@ describe('request audit payload tabs', () => {
         )
       ).toHaveLength(1)
     })
+  })
+
+  test('keeps the payload area stable while the first tab request is pending', async () => {
+    let resolveTrace: (
+      value: Awaited<ReturnType<typeof getRequestAuditPayloadByRequestId>>
+    ) => void = () => undefined
+    getRequestAuditPayloadByRequestId.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTrace = resolve
+        })
+    )
+
+    renderDialog(
+      <RequestAuditDialog
+        open
+        onOpenChange={vi.fn()}
+        loading={false}
+        auditRecord={auditRecord}
+        onOpenRequestAudit={vi.fn()}
+      />
+    )
+
+    const tabContent = document.querySelector('[data-slot="tabs-content"]')
+    expect(tabContent).toHaveClass('min-h-[26.25rem]')
+    expect(tabContent).toHaveAttribute('aria-busy', 'true')
+    expect(tabContent?.firstElementChild).toHaveClass('h-[26.25rem]')
+    expect(screen.queryByText('Loading audit payloads')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveTrace({
+        success: true,
+        data: {
+          request_id: auditRecord.request_id,
+          ...sectionRecords.trace,
+        },
+      })
+    })
+
+    expect(
+      await screen.findByRole('region', { name: 'Trace' })
+    ).toHaveTextContent('request_conversion')
+    expect(tabContent).toHaveAttribute('aria-busy', 'false')
   })
 })

@@ -102,13 +102,15 @@ describe('request audit dialog layout', () => {
     })
 
     expect(scrollArea).toHaveClass(
+      'h-full',
+      'min-h-0',
       'w-full',
-      'min-w-0',
       'max-w-full',
+      'min-w-0',
       'overflow-x-hidden'
     )
     expect(tabs).toHaveClass('min-w-0', 'max-w-full')
-    expect(tabContent).toHaveClass('min-w-0', 'max-w-full')
+    expect(tabContent).toHaveClass('min-h-[26.25rem]', 'min-w-0', 'max-w-full')
     expect(answerBlock).toHaveClass(
       'min-w-0',
       'max-w-full',

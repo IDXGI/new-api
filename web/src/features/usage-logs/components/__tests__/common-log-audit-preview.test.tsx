@@ -16,13 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { CommonLogAuditPreview } from '../columns/common-log-audit-preview'
 
 describe('common log audit preview', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   test('renders only a bounded answer prefix for long audit text', () => {
     const hiddenTail = 'TAIL_MUST_NOT_ENTER_THE_DOM'
     const answerText = `${'回答内容'.repeat(100)}${hiddenTail}`
@@ -69,6 +73,41 @@ describe('common log audit preview', () => {
     await user.click(screen.getByRole('button', { name: 'Audit' }))
 
     expect(onOpen).toHaveBeenCalledWith('req-click')
+  })
+
+  test('shows a multiline answer preview at the pointer after a one-second hover', async () => {
+    vi.useFakeTimers()
+    const answerText = `First answer line\nSecond answer line with more detail than the table cell displays.`
+
+    render(
+      <CommonLogAuditPreview
+        answerText={answerText}
+        hasAudit
+        requestId='req-hover'
+        auditLabel='Audit'
+        unavailableLabel='Unavailable'
+        onOpen={() => undefined}
+      />
+    )
+
+    const preview = screen.getByRole('button', { name: 'Audit' })
+    fireEvent.pointerMove(preview, { clientX: 120, clientY: 80 })
+    fireEvent.pointerEnter(preview, { pointerType: 'mouse' })
+    fireEvent.mouseEnter(preview)
+    fireEvent.mouseMove(preview, { clientX: 120, clientY: 80 })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999)
+    })
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    const tooltip = screen.getByRole('tooltip')
+    expect(tooltip.textContent).toBe(answerText)
+    expect(tooltip).toHaveClass('whitespace-pre-wrap', 'break-words')
+    expect(tooltip.parentElement).toHaveStyle({ position: 'fixed' })
   })
 
   test('does not present a missing audit record as an available audit', async () => {

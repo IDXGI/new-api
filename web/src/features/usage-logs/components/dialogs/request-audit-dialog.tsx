@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Check, Clipboard, Copy, FileJson, Link2, Route } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -367,7 +367,6 @@ export function RequestAuditDialog({
   onOpenRequestAudit,
 }: RequestAuditDialogProps) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const [activeDetailTab, setActiveDetailTab] =
     useState<RequestAuditPayloadTab>('trace')
@@ -395,15 +394,19 @@ export function RequestAuditDialog({
     retry: false,
     staleTime: Infinity,
   })
-  const cachedClientResponse = queryClient.getQueryData<RequestAuditRecord>([
-    'request-audit',
-    'payload',
-    requestId,
-    'client_response',
-  ])
-  const aggregatedText = getAuditAggregatedText(
-    cachedClientResponse ?? auditRecord
-  )
+  const answerPreview = getAuditAggregatedText(auditRecord)
+  const fullAnswerQuery = useQuery({
+    queryKey: ['request-audit', 'payload', requestId, 'answer'],
+    queryFn: async () => {
+      const answerRecord = await fetchRequestAuditSection(requestId, 'answer')
+      return getAuditAggregatedText(answerRecord) || answerPreview
+    },
+    enabled: open && requestId !== '',
+    placeholderData: answerPreview,
+    retry: false,
+    staleTime: Infinity,
+  })
+  const aggregatedText = fullAnswerQuery.data?.trim() || answerPreview
   const activeDetailPayload = getPayloadValue(
     activePayloadQuery.data,
     activePayloadSection

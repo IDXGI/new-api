@@ -39,6 +39,7 @@ const auditRecord: RequestAuditRecord = {
 }
 
 const sectionRecords = {
+  answer: { aggregated_text: 'Complete answer content' },
   trace: { trace: { request_conversion: ['openai_responses', 'claude'] } },
   client_request: {
     client_request: { body_json: { model: 'client-request-model' } },
@@ -127,7 +128,11 @@ describe('request audit payload tabs', () => {
       'req-audit-tabs',
       'trace'
     )
-    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledTimes(1)
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledWith(
+      'req-audit-tabs',
+      'answer'
+    )
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledTimes(2)
     expect(getRequestAuditPayloadByRequestId).not.toHaveBeenCalledWith(
       'req-audit-tabs',
       'client_request'
@@ -206,5 +211,56 @@ describe('request audit payload tabs', () => {
       await screen.findByRole('region', { name: 'Trace' })
     ).toHaveTextContent('request_conversion')
     expect(tabContent).toHaveAttribute('aria-busy', 'false')
+  })
+
+  test('loads the complete answer without requiring the client response tab', async () => {
+    const answerPreview = 'This is only the bounded answer preview...'
+    const completeAnswer =
+      'This is the complete answer returned by the dedicated answer payload.'
+    getRequestAuditPayloadByRequestId.mockImplementation(
+      async (_requestId: string, section: string) => {
+        if (section === 'answer') {
+          return {
+            success: true,
+            data: {
+              request_id: auditRecord.request_id,
+              aggregated_text: completeAnswer,
+            },
+          }
+        }
+        return {
+          success: true,
+          data: {
+            request_id: auditRecord.request_id,
+            ...sectionRecords[section as keyof typeof sectionRecords],
+          },
+        }
+      }
+    )
+
+    renderDialog(
+      <RequestAuditDialog
+        open
+        onOpenChange={vi.fn()}
+        loading={false}
+        auditRecord={{ ...auditRecord, aggregated_text: answerPreview }}
+        onOpenRequestAudit={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(answerPreview)).toBeInTheDocument()
+    expect(await screen.findByText(completeAnswer)).toBeInTheDocument()
+    expect(getRequestAuditPayloadByRequestId).toHaveBeenCalledWith(
+      'req-audit-tabs',
+      'answer'
+    )
+    expect(getRequestAuditPayloadByRequestId).not.toHaveBeenCalledWith(
+      'req-audit-tabs',
+      'client_response'
+    )
+    expect(screen.getByRole('tab', { name: 'Trace' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
   })
 })

@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, test, vi } from 'vitest'
 
 import type { RequestAuditRecord } from '../../../types'
@@ -42,6 +43,7 @@ describe('request audit dialog layout', () => {
   })
 
   test('keeps long answer and payload tokens inside the dialog width', async () => {
+    const user = userEvent.setup()
     render(
       <RequestAuditDialog
         open
@@ -58,6 +60,7 @@ describe('request audit dialog layout', () => {
     const tabs = dialog.querySelector('[data-slot="tabs"]')
     const tabContent = dialog.querySelector('[data-slot="tabs-content"]')
     const answerBlock = screen.getByText(answerToken)
+    await user.click(screen.getByRole('tab', { name: 'Client Request' }))
     const payloadViewer = await screen.findByRole('region', {
       name: 'Client Request',
     })

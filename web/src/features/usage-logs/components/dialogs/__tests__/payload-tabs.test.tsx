@@ -44,12 +44,13 @@ describe('request audit payload tabs', () => {
     i18next.addResourceBundle('en', 'translation', {
       'Client Request': 'Client Request',
       'Client Response': 'Client Response',
+      Trace: 'Trace',
       'Upstream Request': 'Upstream Request',
       'Upstream Response': 'Upstream Response',
     })
   })
 
-  test('shows each client and upstream wire boundary as a distinct tab', async () => {
+  test('opens on trace and defers large wire payloads until their tab is selected', async () => {
     const user = userEvent.setup()
     render(
       <RequestAuditDialog
@@ -62,6 +63,10 @@ describe('request audit payload tabs', () => {
       />
     )
 
+    expect(screen.getByRole('tab', { name: 'Trace' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    )
     expect(
       screen.getByRole('tab', { name: 'Client Request' })
     ).toBeInTheDocument()
@@ -74,17 +79,23 @@ describe('request audit payload tabs', () => {
     expect(
       screen.getByRole('tab', { name: 'Client Response' })
     ).toBeInTheDocument()
-    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(screen.getAllByRole('tab')).toHaveLength(5)
     expect(
       await screen.findByRole('region', { name: 'Trace' })
     ).toHaveTextContent('request_conversion')
+    expect(
+      screen.queryByRole('region', { name: 'Client Request' })
+    ).not.toBeInTheDocument()
+    expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
+      1
+    )
 
     await user.click(screen.getByRole('tab', { name: 'Upstream Request' }))
     expect(
       await screen.findByRole('region', { name: 'Upstream Request' })
     ).toHaveTextContent('upstream-request-model')
     expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
-      2
+      1
     )
 
     await user.click(screen.getByRole('tab', { name: 'Client Response' }))
@@ -92,7 +103,7 @@ describe('request audit payload tabs', () => {
       await screen.findByRole('region', { name: 'Client Response' })
     ).toHaveTextContent('client-response-model')
     expect(document.querySelectorAll('[data-highlight-enabled]')).toHaveLength(
-      2
+      1
     )
   })
 })

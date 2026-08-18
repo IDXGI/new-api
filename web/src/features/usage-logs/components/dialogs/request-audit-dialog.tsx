@@ -330,12 +330,12 @@ export function RequestAuditDialog({
 }: RequestAuditDialogProps) {
   const { t } = useTranslation()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const [activeDetailTab, setActiveDetailTab] = useState('client-request')
+  const [activeDetailTab, setActiveDetailTab] = useState('trace')
   const [relatedFilter, setRelatedFilter] = useState(RELATED_FILTER_ALL)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
   useEffect(() => {
-    setActiveDetailTab('client-request')
+    setActiveDetailTab('trace')
     setRelatedFilter(RELATED_FILTER_ALL)
     setCopiedKey(null)
   }, [auditRecord?.request_id, open])
@@ -354,9 +354,13 @@ export function RequestAuditDialog({
   const upstreamResponsePayload = auditRecord?.upstream_response
   const clientResponsePayload =
     auditRecord?.client_response ?? auditRecord?.response
-  let activeDetailPayload = clientRequestPayload
-  let activeDetailTitle = t('Client Request')
+  let activeDetailPayload = auditRecord?.trace
+  let activeDetailTitle = t('Trace')
   switch (activeDetailTab) {
+    case 'client-request':
+      activeDetailPayload = clientRequestPayload
+      activeDetailTitle = t('Client Request')
+      break
     case 'upstream-request':
       activeDetailPayload = upstreamRequestPayload
       activeDetailTitle = t('Upstream Request')
@@ -726,7 +730,7 @@ export function RequestAuditDialog({
                 title={t('Audit Payloads')}
                 description={
                   payloadsLoaded
-                    ? t('Compare payloads at each client and upstream boundary')
+                    ? t('Inspect request, response and relay trace data')
                     : t(
                         'Large request and response payloads load after the overview'
                       )
@@ -749,6 +753,10 @@ export function RequestAuditDialog({
                   onValueChange={setActiveDetailTab}
                 >
                   <TabsList className='h-auto max-w-full flex-wrap justify-start'>
+                    <TabsTrigger value='trace'>
+                      <Route data-icon='inline-start' />
+                      {t('Trace')}
+                    </TabsTrigger>
                     <TabsTrigger value='client-request'>
                       <Link2 data-icon='inline-start' />
                       {t('Client Request')}
@@ -782,19 +790,6 @@ export function RequestAuditDialog({
                     )}
                   </TabsContent>
                 </Tabs>
-              </AuditSection>
-
-              <AuditSection title={t('Trace')}>
-                {payloadsLoaded ? (
-                  <Suspense fallback={<JsonViewerFallback />}>
-                    <LazyAuditJsonViewer
-                      ariaLabel={t('Trace')}
-                      value={auditRecord.trace}
-                    />
-                  </Suspense>
-                ) : (
-                  <PayloadPlaceholder loading={payloadLoading} />
-                )}
               </AuditSection>
             </div>
           ) : (

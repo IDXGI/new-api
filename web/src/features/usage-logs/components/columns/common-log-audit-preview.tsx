@@ -19,14 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import { useMemo, useRef } from 'react'
 
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 
 const AUDIT_ANSWER_PREVIEW_RUNE_LIMIT = 160
-const AUDIT_ANSWER_HOVER_DELAY_MS = 1000
+const AUDIT_ANSWER_HOVER_DELAY_MS = 500
+const AUDIT_ANSWER_HOVER_CLOSE_DELAY_MS = 200
 
 function getAuditAnswerPreview(answerText: string | undefined): string {
   if (!answerText) return ''
@@ -89,53 +89,56 @@ export function CommonLogAuditPreview(props: {
   )
 
   return (
-    <TooltipProvider delay={AUDIT_ANSWER_HOVER_DELAY_MS}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type='button'
-              className='focus-visible:ring-ring block w-full min-w-0 border-0 bg-transparent p-0 text-left text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default'
-              data-disable-active-scale
-              aria-label={props.auditLabel}
-              title={nativeTitle}
-              disabled={!canOpen}
-              onPointerEnter={(event) => {
-                cursorPositionRef.current = {
-                  x: event.clientX,
-                  y: event.clientY,
-                }
-              }}
-              onPointerMove={(event) => {
-                cursorPositionRef.current = {
-                  x: event.clientX,
-                  y: event.clientY,
-                }
-              }}
-              onClick={(event) => {
-                event.stopPropagation()
-                if (canOpen) props.onOpen(requestId)
-              }}
-            />
-          }
+    <HoverCard>
+      <HoverCardTrigger
+        delay={AUDIT_ANSWER_HOVER_DELAY_MS}
+        closeDelay={AUDIT_ANSWER_HOVER_CLOSE_DELAY_MS}
+        render={
+          <button
+            type='button'
+            className='focus-visible:ring-ring block w-full min-w-0 border-0 bg-transparent p-0 text-left text-xs leading-relaxed focus-visible:ring-2 focus-visible:outline-none disabled:cursor-default'
+            data-disable-active-scale
+            aria-label={props.auditLabel}
+            title={nativeTitle}
+            disabled={!canOpen}
+            onPointerEnter={(event) => {
+              cursorPositionRef.current = {
+                x: event.clientX,
+                y: event.clientY,
+              }
+            }}
+            onPointerMove={(event) => {
+              cursorPositionRef.current = {
+                x: event.clientX,
+                y: event.clientY,
+              }
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+              if (canOpen) props.onOpen(requestId)
+            }}
+          />
+        }
+      >
+        <span className='text-muted-foreground hover:text-foreground line-clamp-2 break-all whitespace-normal transition-colors'>
+          {displayText}
+        </span>
+      </HoverCardTrigger>
+      {hoverText && (
+        <HoverCardContent
+          role='tooltip'
+          align='start'
+          anchor={cursorAnchor}
+          positionMethod='fixed'
+          side='bottom'
+          sideOffset={10}
+          className='max-h-64 w-80 max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain p-3 text-left text-sm leading-relaxed'
         >
-          <span className='text-muted-foreground hover:text-foreground line-clamp-2 break-all whitespace-normal transition-colors'>
-            {displayText}
-          </span>
-        </TooltipTrigger>
-        {hoverText && (
-          <TooltipContent
-            align='start'
-            anchor={cursorAnchor}
-            positionMethod='fixed'
-            side='bottom'
-            sideOffset={12}
-            className='max-h-64 w-80 max-w-[calc(100vw-2rem)] items-start overflow-y-auto px-3 py-2 text-left leading-relaxed break-words whitespace-pre-wrap shadow-md'
-          >
+          <div className='min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap'>
             {hoverText}
-          </TooltipContent>
-        )}
-      </Tooltip>
-    </TooltipProvider>
+          </div>
+        </HoverCardContent>
+      )}
+    </HoverCard>
   )
 }

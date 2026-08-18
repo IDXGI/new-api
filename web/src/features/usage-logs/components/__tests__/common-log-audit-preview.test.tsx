@@ -75,7 +75,7 @@ describe('common log audit preview', () => {
     expect(onOpen).toHaveBeenCalledWith('req-click')
   })
 
-  test('shows a multiline answer preview at the pointer after a one-second hover', async () => {
+  test('shows a themed wrap-safe answer preview at the pointer after a half-second hover', async () => {
     vi.useFakeTimers()
     const answerText = `First answer line\nSecond answer line with more detail than the table cell displays.`
 
@@ -97,17 +97,65 @@ describe('common log audit preview', () => {
     fireEvent.mouseMove(preview, { clientX: 120, clientY: 80 })
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(999)
+      await vi.advanceTimersByTimeAsync(499)
     })
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1)
     })
-    const tooltip = screen.getByRole('tooltip')
-    expect(tooltip.textContent).toBe(answerText)
-    expect(tooltip).toHaveClass('whitespace-pre-wrap', 'break-words')
-    expect(tooltip.parentElement).toHaveStyle({ position: 'fixed' })
+    const hoverPreview = screen.getByRole('tooltip')
+    expect(hoverPreview.textContent).toBe(answerText)
+    expect(hoverPreview).toHaveClass(
+      'bg-popover',
+      'text-popover-foreground',
+      'max-h-64',
+      'overflow-x-hidden',
+      'overflow-y-auto',
+      'overscroll-contain'
+    )
+    expect(hoverPreview.firstElementChild).toHaveClass(
+      'min-w-0',
+      'whitespace-pre-wrap',
+      '[overflow-wrap:anywhere]'
+    )
+    expect(hoverPreview.parentElement).toHaveStyle({ position: 'fixed' })
+  })
+
+  test('keeps the answer preview open while the pointer moves into its scroll area', async () => {
+    vi.useFakeTimers()
+
+    render(
+      <CommonLogAuditPreview
+        answerText={'Scrollable answer line\n'.repeat(20)}
+        hasAudit
+        requestId='req-scroll-preview'
+        auditLabel='Audit'
+        unavailableLabel='Unavailable'
+        onOpen={() => undefined}
+      />
+    )
+
+    const preview = screen.getByRole('button', { name: 'Audit' })
+    fireEvent.pointerMove(preview, { clientX: 120, clientY: 80 })
+    fireEvent.pointerEnter(preview, { pointerType: 'mouse' })
+    fireEvent.mouseEnter(preview)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    const hoverPreview = screen.getByRole('tooltip')
+    fireEvent.pointerLeave(preview, { relatedTarget: hoverPreview })
+    fireEvent.mouseLeave(preview, { relatedTarget: hoverPreview })
+    fireEvent.pointerEnter(hoverPreview, { relatedTarget: preview })
+    fireEvent.mouseEnter(hoverPreview, { relatedTarget: preview })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300)
+    })
+
+    expect(screen.getByRole('tooltip')).toBeInTheDocument()
   })
 
   test('does not present a missing audit record as an available audit', async () => {

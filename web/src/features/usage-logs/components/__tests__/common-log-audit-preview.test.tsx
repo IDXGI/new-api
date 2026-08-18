@@ -16,13 +16,38 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { CommonLogAuditPreview } from '../columns/common-log-audit-preview'
 
+const getRequestAuditByRequestId = vi.hoisted(() => vi.fn())
+
+vi.mock('../../api', () => ({
+  getRequestAuditByRequestId,
+}))
+
+function renderPreview(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+  )
+}
+
 describe('common log audit preview', () => {
+  beforeEach(() => {
+    getRequestAuditByRequestId.mockReset()
+    getRequestAuditByRequestId.mockResolvedValue({
+      success: true,
+      data: { aggregated_text: 'Loaded full answer' },
+    })
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -31,7 +56,7 @@ describe('common log audit preview', () => {
     const hiddenTail = 'TAIL_MUST_NOT_ENTER_THE_DOM'
     const answerText = `${'回答内容'.repeat(100)}${hiddenTail}`
 
-    render(
+    renderPreview(
       <CommonLogAuditPreview
         answerText={answerText}
         hasAudit
@@ -59,7 +84,7 @@ describe('common log audit preview', () => {
     const user = userEvent.setup()
     const onOpen = vi.fn()
 
-    render(
+    renderPreview(
       <CommonLogAuditPreview
         answerText='Answer preview'
         hasAudit
@@ -75,11 +100,16 @@ describe('common log audit preview', () => {
     expect(onOpen).toHaveBeenCalledWith('req-click')
   })
 
-  test('shows a themed wrap-safe answer preview at the pointer after a half-second hover', async () => {
+  test('loads the full answer in a smaller themed popup after a half-second hover', async () => {
     vi.useFakeTimers()
-    const answerText = `First answer line\nSecond answer line with more detail than the table cell displays.`
+    const answerText = 'Short answer preview'
+    const fullAnswerText = `First complete answer line\nSecond complete answer line that is absent from the list preview.`
+    getRequestAuditByRequestId.mockResolvedValue({
+      success: true,
+      data: { aggregated_text: fullAnswerText },
+    })
 
-    render(
+    renderPreview(
       <CommonLogAuditPreview
         answerText={answerText}
         hasAudit
@@ -100,19 +130,23 @@ describe('common log audit preview', () => {
       await vi.advanceTimersByTimeAsync(499)
     })
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(getRequestAuditByRequestId).not.toHaveBeenCalled()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1)
+      await vi.runOnlyPendingTimersAsync()
     })
     const hoverPreview = screen.getByRole('tooltip')
-    expect(hoverPreview.textContent).toBe(answerText)
+    expect(hoverPreview.textContent).toBe(fullAnswerText)
+    expect(getRequestAuditByRequestId).toHaveBeenCalledWith('req-hover', false)
     expect(hoverPreview).toHaveClass(
       'bg-popover',
       'text-popover-foreground',
       'max-h-64',
       'overflow-x-hidden',
       'overflow-y-auto',
-      'overscroll-contain'
+      'overscroll-contain',
+      'text-xs'
     )
     expect(hoverPreview.firstElementChild).toHaveClass(
       'min-w-0',
@@ -125,7 +159,7 @@ describe('common log audit preview', () => {
   test('keeps the answer preview open while the pointer moves into its scroll area', async () => {
     vi.useFakeTimers()
 
-    render(
+    renderPreview(
       <CommonLogAuditPreview
         answerText={'Scrollable answer line\n'.repeat(20)}
         hasAudit
@@ -162,7 +196,7 @@ describe('common log audit preview', () => {
     const user = userEvent.setup()
     const onOpen = vi.fn()
 
-    render(
+    renderPreview(
       <CommonLogAuditPreview
         answerText=''
         hasAudit={false}

@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useQuery } from '@tanstack/react-query'
 import { useMemo, useRef } from 'react'
 
 import {
@@ -23,6 +24,8 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
+
+import { getRequestAuditByRequestId } from '../../api'
 
 const AUDIT_ANSWER_PREVIEW_RUNE_LIMIT = 160
 const AUDIT_ANSWER_HOVER_DELAY_MS = 500
@@ -48,6 +51,37 @@ function getAuditAnswerPreview(answerText: string | undefined): string {
   preview = preview.trimEnd()
   if (!preview) return ''
   return truncated ? `${preview}…` : preview
+}
+
+function AuditAnswerHoverContent(props: {
+  fallbackText: string
+  requestId: string
+}) {
+  const fullAnswerQuery = useQuery({
+    queryKey: ['request-audit', 'aggregated-text', props.requestId],
+    queryFn: async () => {
+      const result = await getRequestAuditByRequestId(props.requestId, false)
+      if (!result.success || !result.data) {
+        throw new Error(result.message || 'Request audit unavailable')
+      }
+      const fullAnswerText = result.data.aggregated_text?.trim() ?? ''
+      return fullAnswerText || props.fallbackText
+    },
+    enabled: props.requestId !== '',
+    placeholderData: props.fallbackText,
+    retry: false,
+    staleTime: Infinity,
+  })
+  const answerText = fullAnswerQuery.data?.trim() || props.fallbackText
+
+  return (
+    <div
+      className='min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap'
+      aria-busy={fullAnswerQuery.isFetching}
+    >
+      {answerText}
+    </div>
+  )
 }
 
 export function CommonLogAuditPreview(props: {
@@ -132,11 +166,12 @@ export function CommonLogAuditPreview(props: {
           positionMethod='fixed'
           side='bottom'
           sideOffset={10}
-          className='max-h-64 w-80 max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain p-3 text-left text-sm leading-relaxed'
+          className='max-h-64 w-80 max-w-[calc(100vw-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain p-3 text-left text-xs leading-relaxed'
         >
-          <div className='min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap'>
-            {hoverText}
-          </div>
+          <AuditAnswerHoverContent
+            fallbackText={hoverText}
+            requestId={requestId}
+          />
         </HoverCardContent>
       )}
     </HoverCard>
